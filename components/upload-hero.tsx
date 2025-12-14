@@ -70,7 +70,8 @@ export default function UploadHero({
   const instWaveContainerRef = useRef<HTMLDivElement | null>(null);
   const instWaveSurferRef = useRef<WaveSurfer | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  // Use same-origin proxy in production to avoid Mixed Content (HTTPS page -> HTTP backend).
+  const apiBase = "/api/py";
 
   async function safeJson(res: Response) {
     try {
