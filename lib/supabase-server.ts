@@ -1,21 +1,22 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY",
-  );
+function resolveSupabaseUrl() {
+  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 }
 
-const SUPABASE_URL = supabaseUrl as string;
-const SUPABASE_KEY = supabaseKey as string;
+function resolveSupabaseAnonKey() {
+  return process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+}
 
 export function getSupabaseServerClient() {
-  return createClient(SUPABASE_URL, SUPABASE_KEY, {
+  const url = resolveSupabaseUrl();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || resolveSupabaseAnonKey();
+  if (!url || !key) {
+    throw new Error(
+      "Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
+  }
+  return createClient(url, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -24,10 +25,12 @@ export function getSupabaseServerClient() {
 }
 
 export function getSupabaseAnonServerClient() {
-  if (!SUPABASE_URL || !supabaseAnonKey) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
+  const url = resolveSupabaseUrl();
+  const anonKey = resolveSupabaseAnonKey();
+  if (!url || !anonKey) {
+    throw new Error("Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_ANON_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
-  return createClient(SUPABASE_URL, supabaseAnonKey, {
+  return createClient(url, anonKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

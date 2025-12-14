@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { defaultLocale } from "@/i18n/config";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { NextResponse } from "next/server";
+import { getSupabaseAnonServerClient } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
   const { email } = await request.json();
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_SITE_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseAnonServerClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/${defaultLocale}/auth/login`,
   });
