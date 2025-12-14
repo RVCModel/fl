@@ -70,17 +70,28 @@ export default function UploadHero({
   const instWaveContainerRef = useRef<HTMLDivElement | null>(null);
   const instWaveSurferRef = useRef<WaveSurfer | null>(null);
 
-  // Use same-origin proxy in production to avoid Mixed Content (HTTPS page -> HTTP backend).
-  const apiBase = "/api/py";
-  const toProxyUrl = (raw?: string | null) => {
+  // For large uploads, the browser should upload directly to the Python backend.
+  // The backend MUST be served over HTTPS in production to avoid Mixed Content.
+  const rawApiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const apiBase = (() => {
+    const trimmed = String(rawApiBase).replace(/\/+$/, "");
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && trimmed.startsWith("http://")) {
+      return `https://${trimmed.slice("http://".length)}`;
+    }
+    return trimmed;
+  })();
+
+  const normalizeBackendUrl = (raw?: string | null) => {
     if (!raw) return null;
     const value = String(raw);
     if (!value) return null;
-    if (value.startsWith(apiBase)) return value;
-    if (value.startsWith("/")) return `${apiBase}${value}`;
     try {
+      const base = new URL(apiBase);
+      if (value.startsWith("/")) {
+        return `${base.origin}${value}`;
+      }
       const u = new URL(value);
-      return `${apiBase}${u.pathname}${u.search}`;
+      return `${base.origin}${u.pathname}${u.search}`;
     } catch {
       return value;
     }
@@ -171,8 +182,8 @@ export default function UploadHero({
       if (saved.taskId && saved.phase) {
         setTaskId(saved.taskId);
         setPhase(saved.phase);
-        setVocalsUrl(toProxyUrl(saved.vocalsUrl) || null);
-        setInstUrl(toProxyUrl(saved.instUrl) || null);
+        setVocalsUrl(normalizeBackendUrl(saved.vocalsUrl) || null);
+        setInstUrl(normalizeBackendUrl(saved.instUrl) || null);
         setPosition(saved.position || 0);
         setProcessingStartedAt(typeof saved.startedAt === "number" ? saved.startedAt : saved.savedAt || null);
       }
@@ -235,8 +246,8 @@ export default function UploadHero({
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           if (data.status === "completed") {
-            setVocalsUrl(toProxyUrl(data.vocals_url || data.vocalsUrl));
-            setInstUrl(toProxyUrl(data.instrumental_url || data.instrumentalUrl));
+            setVocalsUrl(normalizeBackendUrl(data.vocals_url || data.vocalsUrl));
+            setInstUrl(normalizeBackendUrl(data.instrumental_url || data.instrumentalUrl));
             setPhase("done");
             setMessage("");
             if (timer) clearInterval(timer);

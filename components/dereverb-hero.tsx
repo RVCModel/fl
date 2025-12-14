@@ -72,17 +72,28 @@ export default function DereverbHero({
   const residualWaveContainerRef = useRef<HTMLDivElement | null>(null);
   const residualWaveSurferRef = useRef<WaveSurfer | null>(null);
 
-  // Use same-origin proxy in production to avoid Mixed Content (HTTPS page -> HTTP backend).
-  const apiBase = "/api/py";
-  const toProxyUrl = (raw?: string | null) => {
+  // For large uploads, the browser should upload directly to the Python backend.
+  // The backend MUST be served over HTTPS in production to avoid Mixed Content.
+  const rawApiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+  const apiBase = (() => {
+    const trimmed = String(rawApiBase).replace(/\/+$/, "");
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && trimmed.startsWith("http://")) {
+      return `https://${trimmed.slice("http://".length)}`;
+    }
+    return trimmed;
+  })();
+
+  const normalizeBackendUrl = (raw?: string | null) => {
     if (!raw) return null;
     const value = String(raw);
     if (!value) return null;
-    if (value.startsWith(apiBase)) return value;
-    if (value.startsWith("/")) return `${apiBase}${value}`;
     try {
+      const base = new URL(apiBase);
+      if (value.startsWith("/")) {
+        return `${base.origin}${value}`;
+      }
       const u = new URL(value);
-      return `${apiBase}${u.pathname}${u.search}`;
+      return `${base.origin}${u.pathname}${u.search}`;
     } catch {
       return value;
     }
@@ -168,8 +179,8 @@ export default function DereverbHero({
       if (saved.taskId && saved.phase) {
         setTaskId(saved.taskId);
         setPhase(saved.phase);
-        setDryUrl(toProxyUrl(saved.dryUrl) || null);
-        setResidualUrl(toProxyUrl(saved.residualUrl) || null);
+        setDryUrl(normalizeBackendUrl(saved.dryUrl) || null);
+        setResidualUrl(normalizeBackendUrl(saved.residualUrl) || null);
         setPosition(saved.position || 0);
         setProcessingStartedAt(typeof saved.startedAt === "number" ? saved.startedAt : saved.savedAt || null);
       }
@@ -232,8 +243,8 @@ export default function DereverbHero({
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           if (data.status === "completed") {
-            setDryUrl(toProxyUrl(data.dereverb_url || data.dereverbUrl));
-            setResidualUrl(toProxyUrl(data.reverb_url || data.reverbUrl));
+            setDryUrl(normalizeBackendUrl(data.dereverb_url || data.dereverbUrl));
+            setResidualUrl(normalizeBackendUrl(data.reverb_url || data.reverbUrl));
             setPhase("done");
             setMessage("");
             if (timer) clearInterval(timer);
