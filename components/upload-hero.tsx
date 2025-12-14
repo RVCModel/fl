@@ -72,6 +72,19 @@ export default function UploadHero({
 
   // Use same-origin proxy in production to avoid Mixed Content (HTTPS page -> HTTP backend).
   const apiBase = "/api/py";
+  const toProxyUrl = (raw?: string | null) => {
+    if (!raw) return null;
+    const value = String(raw);
+    if (!value) return null;
+    if (value.startsWith(apiBase)) return value;
+    if (value.startsWith("/")) return `${apiBase}${value}`;
+    try {
+      const u = new URL(value);
+      return `${apiBase}${u.pathname}${u.search}`;
+    } catch {
+      return value;
+    }
+  };
 
   async function safeJson(res: Response) {
     try {
@@ -158,8 +171,8 @@ export default function UploadHero({
       if (saved.taskId && saved.phase) {
         setTaskId(saved.taskId);
         setPhase(saved.phase);
-        setVocalsUrl(saved.vocalsUrl || null);
-        setInstUrl(saved.instUrl || null);
+        setVocalsUrl(toProxyUrl(saved.vocalsUrl) || null);
+        setInstUrl(toProxyUrl(saved.instUrl) || null);
         setPosition(saved.position || 0);
         setProcessingStartedAt(typeof saved.startedAt === "number" ? saved.startedAt : saved.savedAt || null);
       }
@@ -222,8 +235,8 @@ export default function UploadHero({
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           if (data.status === "completed") {
-            setVocalsUrl(data.vocals_url || data.vocalsUrl);
-            setInstUrl(data.instrumental_url || data.instrumentalUrl);
+            setVocalsUrl(toProxyUrl(data.vocals_url || data.vocalsUrl));
+            setInstUrl(toProxyUrl(data.instrumental_url || data.instrumentalUrl));
             setPhase("done");
             setMessage("");
             if (timer) clearInterval(timer);

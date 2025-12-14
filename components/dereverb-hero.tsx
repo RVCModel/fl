@@ -74,6 +74,19 @@ export default function DereverbHero({
 
   // Use same-origin proxy in production to avoid Mixed Content (HTTPS page -> HTTP backend).
   const apiBase = "/api/py";
+  const toProxyUrl = (raw?: string | null) => {
+    if (!raw) return null;
+    const value = String(raw);
+    if (!value) return null;
+    if (value.startsWith(apiBase)) return value;
+    if (value.startsWith("/")) return `${apiBase}${value}`;
+    try {
+      const u = new URL(value);
+      return `${apiBase}${u.pathname}${u.search}`;
+    } catch {
+      return value;
+    }
+  };
 
   async function safeJson(res: Response) {
     try {
@@ -155,8 +168,8 @@ export default function DereverbHero({
       if (saved.taskId && saved.phase) {
         setTaskId(saved.taskId);
         setPhase(saved.phase);
-        setDryUrl(saved.dryUrl || null);
-        setResidualUrl(saved.residualUrl || null);
+        setDryUrl(toProxyUrl(saved.dryUrl) || null);
+        setResidualUrl(toProxyUrl(saved.residualUrl) || null);
         setPosition(saved.position || 0);
         setProcessingStartedAt(typeof saved.startedAt === "number" ? saved.startedAt : saved.savedAt || null);
       }
@@ -219,8 +232,8 @@ export default function DereverbHero({
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           if (data.status === "completed") {
-            setDryUrl(data.dereverb_url || data.dereverbUrl);
-            setResidualUrl(data.reverb_url || data.reverbUrl);
+            setDryUrl(toProxyUrl(data.dereverb_url || data.dereverbUrl));
+            setResidualUrl(toProxyUrl(data.reverb_url || data.reverbUrl));
             setPhase("done");
             setMessage("");
             if (timer) clearInterval(timer);
