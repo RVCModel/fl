@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     keywords: ["リバーブ除去", "残響除去", "ボーカル補正", "音声処理", "オンライン"],
   };
   const copy = locale === "en" ? en : locale === "ja" ? ja : zh;
-  const fullTitle = `${copy.title}-Demixr.com`;
+  const fullTitle = `${copy.title} - Demixr.com`;
 
   return {
     title: copy.title,

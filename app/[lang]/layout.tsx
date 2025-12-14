@@ -18,8 +18,19 @@ export async function generateMetadata({
   const dictionary = getDictionary(locale);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://demixr.com";
 
+  const baseTitle =
+    locale === "en"
+      ? "Online Vocal Separation Website"
+      : locale === "ja"
+        ? "オンラインボーカル分離サイト"
+        : "在线人声分离网站";
+  const fullBaseTitle = `${baseTitle} - Demixr.com`;
+
   return {
-    title: "demixr",
+    title: {
+      default: baseTitle,
+      template: "%s - Demixr.com",
+    },
     description: dictionary.tagline,
     alternates: {
       canonical: `/${locale}`,
@@ -32,10 +43,15 @@ export async function generateMetadata({
     openGraph: {
       type: "website",
       siteName: "demixr",
-      title: "demixr",
+      title: fullBaseTitle,
       description: dictionary.tagline,
       url: `${siteUrl}/${locale}`,
       locale,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fullBaseTitle,
+      description: dictionary.tagline,
     },
   };
 }

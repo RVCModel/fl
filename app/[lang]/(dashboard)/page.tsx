@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 
   const copy = locale === "en" ? en : locale === "ja" ? ja : zh;
-  const fullTitle = `${copy.title}-Demixr.com`;
+  const fullTitle = `${copy.title} - Demixr.com`;
 
   return {
     title: copy.title,

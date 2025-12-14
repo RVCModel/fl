@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     keywords: ["BPM解析", "キー検出", "Camelot", "ビート検出", "音楽解析"],
   };
   const copy = locale === "en" ? en : locale === "ja" ? ja : zh;
-  const fullTitle = `${copy.title}-Demixr.com`;
+  const fullTitle = `${copy.title} - Demixr.com`;
 
   return {
     title: copy.title,

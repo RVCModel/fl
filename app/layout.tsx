@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://demixr.com"),
   title: {
     default: "Demixr.com",
-    template: "%s-Demixr.com",
+    template: "%s - Demixr.com",
   },
   description: "AI audio tools: demix vocals/instrumental, dereverb, and BPM/key/Camelot detection.",
   applicationName: "Demixr.com",
