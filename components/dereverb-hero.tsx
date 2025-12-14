@@ -60,6 +60,7 @@ export default function DereverbHero({
   const [subscriptionActive, setSubscriptionActive] = useState<boolean | null>(null);
   const [downloadFormat, setDownloadFormat] = useState<"mp3" | "wav">("mp3");
   const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
+  const notFoundStreakRef = useRef(0);
   const STORAGE_KEY = "vofl:dereverb-state";
   const isAbortError = (err: unknown) =>
     err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError");
@@ -210,6 +211,7 @@ export default function DereverbHero({
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (phase === "processing" && taskId) {
+      notFoundStreakRef.current = 0;
       timer = setInterval(async () => {
         try {
           if (processingStartedAt && Date.now() - processingStartedAt > 20 * 60 * 1000) {
@@ -229,6 +231,8 @@ export default function DereverbHero({
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.status === 404) {
+            notFoundStreakRef.current += 1;
+            if (notFoundStreakRef.current < 3) return;
             setPhase("error");
             setMessage(dictionary.errors.taskNotFoundOrExpired);
             if (timer) clearInterval(timer);
@@ -240,6 +244,7 @@ export default function DereverbHero({
             if (timer) clearInterval(timer);
             return;
           }
+          notFoundStreakRef.current = 0;
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           if (data.status === "completed") {

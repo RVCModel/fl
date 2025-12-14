@@ -60,6 +60,7 @@ export default function UploadHero({
   const [subscriptionActive, setSubscriptionActive] = useState<boolean | null>(null);
   const [downloadFormat, setDownloadFormat] = useState<"mp3" | "wav">("mp3");
   const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
+  const notFoundStreakRef = useRef(0);
   const STORAGE_KEY = "vofl:demix-state";
 
   const instAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -213,6 +214,7 @@ export default function UploadHero({
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (phase === "processing" && taskId) {
+      notFoundStreakRef.current = 0;
       timer = setInterval(async () => {
         try {
           if (processingStartedAt && Date.now() - processingStartedAt > 20 * 60 * 1000) {
@@ -232,6 +234,8 @@ export default function UploadHero({
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.status === 404) {
+            notFoundStreakRef.current += 1;
+            if (notFoundStreakRef.current < 3) return;
             setPhase("error");
             setMessage(dictionary.errors.taskNotFoundOrExpired);
             if (timer) clearInterval(timer);
@@ -243,6 +247,7 @@ export default function UploadHero({
             if (timer) clearInterval(timer);
             return;
           }
+          notFoundStreakRef.current = 0;
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           if (data.status === "completed") {
