@@ -12,6 +12,7 @@ import {
 import { useLocale } from "@/components/locale-provider";
 import { locales } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/auth-client";
 import { LogoIcon } from "@/components/logo";
@@ -28,11 +29,12 @@ import {
   History as HistoryIcon,
   CreditCard,
   Waves,
+  Layers,
   User,
 } from "lucide-react";
 
 type NavItem = {
-  key: "demix" | "dereverb" | "bpm" | "history";
+  key: "demix" | "dereverb" | "bpm" | "stems" | "history";
   href: string;
   icon: ReactElement;
 };
@@ -53,6 +55,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const navItems: NavItem[] = [
     { key: "demix", href: "", icon: <Waves className="h-5 w-5" /> },
     { key: "dereverb", href: "/dereverb", icon: <Droplets className="h-5 w-5" /> },
+    { key: "stems", href: "/stems", icon: <Layers className="h-5 w-5" /> },
     { key: "bpm", href: "/bpm", icon: <Activity className="h-5 w-5" /> },
     { key: "history", href: "/history", icon: <HistoryIcon className="h-5 w-5" /> },
   ];
@@ -169,15 +172,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#17171e] text-foreground">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-foreground/5 bg-[#17171e] px-8 text-foreground">
-        <div className="flex items-center gap-3">
-          <Link href={`/${locale}`} className="flex items-center gap-3" aria-label="demixr">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-foreground/5 bg-[#17171e] px-3 text-foreground sm:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Link href={`/${locale}`} className="flex min-w-0 items-center gap-3" aria-label="demixr">
             <LogoIcon size={40} className="drop-shadow-sm" />
-            <div className="flex flex-col">
-              <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 bg-clip-text text-xl font-bold tracking-tight text-transparent">
+            <div className="flex min-w-0 flex-col">
+              <span className="max-w-[140px] truncate bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 bg-clip-text text-xl font-bold tracking-tight text-transparent sm:max-w-none">
                 Demixr
               </span>
-              <span className="-mt-0.5 text-xs text-muted-foreground">{dictionary.brandSubtitle}</span>
+              <span className="-mt-0.5 hidden max-w-[180px] truncate text-xs text-muted-foreground sm:block sm:max-w-none">
+                {dictionary.brandSubtitle}
+              </span>
             </div>
           </Link>
           <div className="relative" ref={menuRef}>
@@ -202,8 +207,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <path d="M15.5 5.5 17 4l1.5 1.5L17 7z" />
               </svg>
             </Button>
+            <span className="pointer-events-none absolute right-0 top-0 z-10 inline-flex h-2.5 w-2.5 translate-x-1/2 -translate-y-1/2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#17171e]" />
+            </span>
             {menuOpen && (
-              <div className="absolute left-0 top-12 min-w-[240px] rounded-2xl border border-white/10 bg-[#17171e] p-3 shadow-2xl">
+              <div className="absolute left-0 top-12 w-[calc(100vw-1.5rem)] max-w-[320px] rounded-2xl border border-white/10 bg-[#17171e] p-3 shadow-2xl sm:min-w-[240px]">
                 <div className="space-y-1">
                   {navItems.map((item) => {
                     const itemPath = item.href || "/";
@@ -215,12 +224,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       demix: "Vocals ? Music",
                       dereverb: "Dry/Wet ? Echo",
                       bpm: "Tempo ? Grid",
+                      stems: "4 stems ? Demucs",
                       history: "Recent jobs",
                     };
                     const labels: Record<NavItem["key"], string> = {
                       demix: dictionary.nav.demix,
                       dereverb: dictionary.nav.dereverb,
                       bpm: dictionary.nav.bpm,
+                      stems: dictionary.nav.stems,
                       history: dictionary.nav.history || "History",
                     };
                     return (
@@ -240,7 +251,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                             {item.icon}
                           </div>
                           <div className="text-left">
-                            <div className="text-sm font-semibold">{dictionary.nav[item.key]}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-semibold">{dictionary.nav[item.key]}</div>
+                              {item.key === "stems" && (
+                                <Badge className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-black">
+                                  NEW
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground">
                               {subtitles[item.key]}
                             </div>
@@ -259,17 +277,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-1 sm:gap-4">
           <div className="relative" ref={langRef}>
             <Button
               variant="outline"
               size="sm"
-              className="flex items-center gap-2 rounded-full border border-transparent bg-transparent px-3 py-2 text-sm text-slate-200 shadow-none transition hover:bg-white/5"
+              className="flex min-w-0 items-center gap-2 rounded-full border border-transparent bg-transparent px-2 py-2 text-sm text-slate-200 shadow-none transition hover:bg-white/5 sm:px-3"
               onClick={() => setLangOpen((v) => !v)}
             >
               <Globe2 className="h-4 w-4 text-slate-300" />
-              <span className="tracking-tight">{localeLabel}</span>
-              <ChevronDown className="ml-1 h-4 w-4 text-slate-400" />
+              <span className="hidden tracking-tight sm:inline">{localeLabel}</span>
+              <ChevronDown className="h-4 w-4 text-slate-400" />
             </Button>
             {langOpen && (
               <div className="absolute right-0 top-12 min-w-[140px] rounded-2xl border border-white/10 bg-[#17171e] p-2 shadow-xl">
@@ -299,7 +317,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-3 rounded-full border border-transparent bg-transparent px-3 py-2 text-slate-200 shadow-none transition hover:bg-white/5"
+                className="flex min-w-0 items-center gap-2 rounded-full border border-transparent bg-transparent px-2 py-2 text-slate-200 shadow-none transition hover:bg-white/5 sm:gap-3 sm:px-3"
                 onClick={() => setProfileOpen((v) => !v)}
                 aria-haspopup="true"
                 aria-expanded={profileOpen}
@@ -307,8 +325,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-semibold text-white">
                   <User className="h-4 w-4" />
                 </span>
-                <span className="text-sm">{userLabel || "用户名"}</span>
-                <ChevronDown className="ml-1 h-4 w-4 text-slate-400" />
+                <span className="hidden max-w-[120px] truncate text-sm sm:inline sm:max-w-[220px]">
+                  {userLabel || "用户名"}
+                </span>
+                <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
               </Button>
               {profileOpen && (
                 <div className="absolute right-0 top-12 w-52 rounded-2xl border border-white/10 bg-[#17171e] p-2 shadow-2xl">

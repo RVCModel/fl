@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "", // demix home
     "/dereverb",
     "/bpm",
+    "/stems",
   ];
 
   const entries: MetadataRoute.Sitemap = [];

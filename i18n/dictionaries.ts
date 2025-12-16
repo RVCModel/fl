@@ -24,6 +24,7 @@ export type Dictionary = {
     demix: { q: string; a: string }[];
     dereverb: { q: string; a: string }[];
     bpm: { q: string; a: string }[];
+    demucs?: { q: string; a: string }[];
   };
   billing: {
     title: string;
@@ -44,6 +45,7 @@ export type Dictionary = {
     demix: string;
     dereverb: string;
     bpm: string;
+    stems: string;
     history?: string;
     settings?: string;
     billing?: string;
@@ -194,6 +196,20 @@ const dictionaries: Record<Locale, Dictionary> = {
           a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下限制策略：\n\n非订阅用户\n- 每日最多可使用 10 次 去人声 / 去混响处理\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日最高可使用 200 次 去人声 / 去混响处理\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需更高频率的使用或更完整的音频输出能力，建议升级为订阅会员以获得完整功能体验。",
         },
       ],
+      demucs: [
+        {
+          q: "上传失败",
+          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 50 MB。若文件超过该限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
+        },
+        {
+          q: "最小音频上传时长",
+          a: "目前系统要求上传的音频时长不得短于 15 秒。\n少于 15 秒的音频将无法触发后端处理流程，因此请确保音频长度满足最低要求后再进行上传。",
+        },
+        {
+          q: "订阅用户与非订阅用户的区别",
+          a: "鉴于音频处理（去人声 / 去混响 / 乐器分离）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下限制策略：\n\n非订阅用户\n- 每日最多可使用 10 次处理\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日最高可使用 200 次处理\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需更高频率的使用或更完整的音频输出能力，建议升级为订阅会员以获得完整功能体验。",
+        },
+      ],
       dereverb: [
         {
           q: "上传失败",
@@ -246,6 +262,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       demix: "去伴奏",
       dereverb: "去混响",
       bpm: "BPM 查询",
+      stems: "乐器分离",
       history: "历史记录",
       settings: "设置",
       billing: "订阅",
@@ -411,6 +428,20 @@ const dictionaries: Record<Locale, Dictionary> = {
           a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different limits:\n\nNon-subscribers\n- Up to 10 vocal removal / dereverb jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Up to 200 vocal removal / dereverb jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you need higher usage limits or full-quality outputs, consider upgrading to a subscription.",
         },
       ],
+      demucs: [
+        {
+          q: "Upload failed",
+          a: "The server uses strict audio-processing and resource scheduling policies.\nFor non-subscribers, the maximum upload size per file is 50 MB. Files above this limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
+        },
+        {
+          q: "Minimum audio duration",
+          a: "Audio must be at least 15 seconds long.\nClips shorter than 15 seconds will not trigger the backend processing pipeline, so please upload a longer audio file.",
+        },
+        {
+          q: "Subscriber vs non-subscriber",
+          a: "Audio processing (vocal removal / dereverb / 4-stem separation) is resource-intensive, so we apply different limits:\n\nNon-subscribers\n- Up to 10 jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Up to 200 jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you need higher usage limits or full-quality outputs, consider upgrading to a subscription.",
+        },
+      ],
       dereverb: [
         {
           q: "Upload failed",
@@ -463,6 +494,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       demix: "Instrumental Removal",
       dereverb: "De-reverb",
       bpm: "BPM Finder",
+      stems: "4-Stem Separation",
       history: "History",
       settings: "Settings",
       billing: "Subscription",
@@ -680,6 +712,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       demix: "伴奏カット",
       dereverb: "リバーブ除去",
       bpm: "BPM 検出",
+      stems: "楽器分離",
       history: "履歴",
       settings: "設定",
       billing: "購読",

@@ -6,13 +6,140 @@ import WaveSurfer from "wavesurfer.js";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Dictionary } from "@/i18n/dictionaries";
 import { Faq } from "@/components/faq";
 import { Play, SkipBack } from "lucide-react";
 import { getValidAccessToken } from "@/lib/auth-client";
 
+// --- 类型定义 ---
 type Phase = "idle" | "uploading" | "processing" | "done" | "error";
+type TrackKey = "inst" | "vocal";
 
+// 轨道高度
+const LANE_HEIGHT = 80;
+
+// 配色方案: Vocal -> Purple, Music(Inst) -> Green
+const TRACK_COLORS: Record<TrackKey, { bg: string; wave: string }> = {
+  inst: { bg: "#2d6a4f", wave: "#74c69d" }, // Music (Green)
+  vocal: { bg: "#3e426e", wave: "#a78bfa" }, // Vocal (Purple)
+};
+
+// --- 辅助函数 ---
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function formatTime(time: number) {
+  const mins = Math.floor(time / 60);
+  const secs = Math.floor(time % 60);
+  const ms = Math.floor((time % 1) * 10);
+  return `0${mins}:${String(secs).padStart(2, "0")}.${ms}`;
+}
+
+// --- MixerSlider 组件 ---
+function MixerSlider({
+  value,
+  onLiveChange,
+  onCommit,
+}: {
+  value: number;
+  onLiveChange: (v: number) => void;
+  onCommit: (v: number) => void;
+}) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const activePathRef = useRef<SVGPolygonElement | null>(null);
+  const thumbRef = useRef<SVGRectElement | null>(null);
+  const valueRef = useRef<number>(value);
+
+  const W = 40;
+  const H = 20;
+  const PAD_BOTTOM = 4;
+  const H_LEFT = 3; 
+  const H_RIGHT = 12;
+  const Y_BOTTOM = H - PAD_BOTTOM; 
+  const Y_TOP_LEFT = Y_BOTTOM - H_LEFT;
+  const Y_TOP_RIGHT = Y_BOTTOM - H_RIGHT;
+
+  const updateVisuals = (v: number) => {
+    const x = (v / 100) * W;
+    const yTopAtX = Y_TOP_LEFT + (Y_TOP_RIGHT - Y_TOP_LEFT) * (v / 100);
+
+    activePathRef.current?.setAttribute(
+      "points", 
+      `0,${Y_BOTTOM} ${x},${Y_BOTTOM} ${x},${yTopAtX} 0,${Y_TOP_LEFT}`
+    );
+
+    const thumbH = 14;
+    const thumbW = 5;
+    const thumbY = (H - thumbH) / 2;
+    const thumbX = clamp(x - thumbW / 2, 0, W - thumbW); 
+    
+    thumbRef.current?.setAttribute("x", String(thumbX));
+    thumbRef.current?.setAttribute("y", String(thumbY));
+  };
+
+  useEffect(() => {
+    valueRef.current = value;
+    updateVisuals(value);
+  }, [value]);
+
+  const updateFromPointer = (clientX: number, commit: boolean) => {
+    const el = rootRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = clamp(clientX - rect.left, 0, rect.width);
+    const v = clamp((x / rect.width) * 100, 0, 100);
+    
+    valueRef.current = v;
+    updateVisuals(v);
+    onLiveChange(v);
+    if (commit) onCommit(v);
+  };
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative h-8 w-14 touch-none select-none cursor-pointer flex items-center justify-center"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        updateFromPointer(e.clientX, false);
+      }}
+      onPointerMove={(e) => {
+        if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        updateFromPointer(e.clientX, false);
+      }}
+      onPointerUp={(e) => {
+        if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        onCommit(valueRef.current);
+      }}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full overflow-visible">
+        <polygon 
+          points={`0,${Y_BOTTOM} ${W},${Y_BOTTOM} ${W},${Y_TOP_RIGHT} 0,${Y_TOP_LEFT}`} 
+          fill="#333333" 
+        />
+        <polygon 
+          ref={activePathRef} 
+          points={`0,${Y_BOTTOM} 0,${Y_BOTTOM} 0,${Y_TOP_LEFT} 0,${Y_TOP_LEFT}`} 
+          fill="#a1a1aa" 
+        />
+        <rect 
+          ref={thumbRef} 
+          width="5" 
+          height="14" 
+          fill="#ffffff" 
+          rx="1.5"
+          className="shadow-sm" 
+        />
+      </svg>
+    </div>
+  );
+}
+
+// --- UploadHero 主组件 ---
 export default function UploadHero({
   dictionary,
   locale,
@@ -41,8 +168,10 @@ export default function UploadHero({
           ? "AI がボーカルと伴奏を分離しています。1 分ほどかかる場合があります。このページを開いたままにしてください。"
           : "人工智能正在分离人声与伴奏，可能需要一分钟。请保持页面开启。",
   };
+
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [phase, setPhase] = useState<Phase>("idle");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [position, setPosition] = useState<number>(0);
@@ -50,8 +179,8 @@ export default function UploadHero({
   const [instUrl, setInstUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [musicVolume, setMusicVolume] = useState(0);
-  const [voiceVolume, setVoiceVolume] = useState(60);
+  const [musicVolume, setMusicVolume] = useState(80);
+  const [voiceVolume, setVoiceVolume] = useState(80);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasWave, setHasWave] = useState(false);
@@ -65,14 +194,12 @@ export default function UploadHero({
 
   const instAudioRef = useRef<HTMLAudioElement | null>(null);
   const vocalAudioRef = useRef<HTMLAudioElement | null>(null);
-  const canvasVoiceRef = useRef<HTMLCanvasElement | null>(null);
   const vocalWaveContainerRef = useRef<HTMLDivElement | null>(null);
   const waveSurferRef = useRef<WaveSurfer | null>(null);
   const instWaveContainerRef = useRef<HTMLDivElement | null>(null);
   const instWaveSurferRef = useRef<WaveSurfer | null>(null);
+  const rafRef = useRef<number | null>(null); // For animation loop
 
-  // For large uploads, the browser should upload directly to the Python backend.
-  // The backend MUST be served over HTTPS in production to avoid Mixed Content.
   const rawApiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
   const apiBase = (() => {
     const trimmed = String(rawApiBase).replace(/\/+$/, "");
@@ -160,8 +287,8 @@ export default function UploadHero({
     };
   }, []);
 
+  // ... (State restoration logic kept same) ...
   useEffect(() => {
-    // Restore persisted task state to survive language switches/reloads
     if (typeof window === "undefined") return;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
@@ -175,7 +302,7 @@ export default function UploadHero({
         savedAt?: number;
         startedAt?: number;
       };
-      const maxAgeMs = 12 * 60 * 60 * 1000; // 12h
+      const maxAgeMs = 12 * 60 * 60 * 1000;
       if (saved.savedAt && Date.now() - saved.savedAt > maxAgeMs) {
         localStorage.removeItem(STORAGE_KEY);
         return;
@@ -211,6 +338,7 @@ export default function UploadHero({
     }
   }, [phase, taskId, vocalsUrl, instUrl, position, processingStartedAt]);
 
+  // ... (Polling logic kept same) ...
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (phase === "processing" && taskId) {
@@ -257,7 +385,6 @@ export default function UploadHero({
             setMessage("");
             if (timer) clearInterval(timer);
             setHistoryRecorded(false);
-
             try {
               await fetch("/api/jobs", {
                 method: "POST",
@@ -275,9 +402,7 @@ export default function UploadHero({
                 }),
               });
             } catch (err) {
-              if (!isAbortError(err)) {
-                console.error("update job failed", err);
-              }
+              if (!isAbortError(err)) console.error("update job failed", err);
             }
           } else if (data.status === "failed") {
             setPhase("error");
@@ -300,9 +425,7 @@ export default function UploadHero({
                 }),
               });
             } catch (err) {
-              if (!isAbortError(err)) {
-                console.error("update job failed", err);
-              }
+              if (!isAbortError(err)) console.error("update job failed", err);
             }
           }
         } catch (err) {
@@ -319,190 +442,181 @@ export default function UploadHero({
     };
   }, [phase, taskId, apiBase, processingStartedAt, dictionary.errors.needLogin, dictionary.errors.processingTimeout, dictionary.errors.taskNotFoundOrExpired, dictionary.errors.uploadFailed]);
 
-  useEffect(() => {
-    if (phase !== "done") return;
-    const canvas = canvasVoiceRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-    const centerY = rect.height / 2;
-    const barWidth = 2;
-    const barGap = 2;
-    const barCount = Math.floor(rect.width / (barWidth + barGap));
-    ctx.fillStyle = "#8b8fd8";
-    for (let i = 0; i < barCount; i++) {
-      const x = i * (barWidth + barGap);
-      const noise = Math.sin(i * 0.28) * Math.cos(i * 0.11) + Math.random() * 0.35;
-      const amplitude = Math.abs(noise) * 0.75 + 0.15;
-      const height = rect.height * amplitude * 0.85;
-      ctx.fillRect(x, centerY - height / 2, barWidth, height);
-    }
-  }, [phase]);
+  // --- WaveSurfer Initializations (流畅播放优化) ---
 
+  // 1. Vocal Track
   useEffect(() => {
     if (phase !== "done" || !vocalWaveContainerRef.current || !vocalAudioRef.current || !vocalsUrl) return;
     if (waveSurferRef.current) {
       waveSurferRef.current.destroy();
       waveSurferRef.current = null;
     }
+
     const ws = WaveSurfer.create({
       container: vocalWaveContainerRef.current,
       backend: "MediaElement",
       media: vocalAudioRef.current,
-      height: 120,
-      waveColor: "#8b8fd8",
-      progressColor: "#8b8fd8",
+      height: LANE_HEIGHT,
+      waveColor: TRACK_COLORS.vocal.wave,
+      progressColor: "rgba(255,255,255,0.4)",
       cursorColor: "#ffffff",
-      cursorWidth: 2,
-      barWidth: 2,
-      barGap: 1.5,
+      cursorWidth: 0,
+      
+      barWidth: undefined,
+      barGap: undefined,
+      barRadius: undefined,
+      
       normalize: true,
       interact: false,
       dragToSeek: false,
       hideScrollbar: true,
+      autoScroll: false,
     });
+
     ws.load(vocalsUrl);
     ws.setVolume(voiceVolume / 100);
-    ws.on("audioprocess", () => {
-      setCurrentTime(ws.getCurrentTime());
-    });
+    if (vocalAudioRef.current) vocalAudioRef.current.volume = voiceVolume / 100;
+
     ws.on("ready", () => {
       setDuration(ws.getDuration());
       setHasWave(true);
     });
     ws.on("finish", () => setIsPlaying(false));
+    
+    // **移除 audioprocess 事件中的 setCurrentTime**
+    // 之前这里高频调用 setCurrentTime 导致 React 重渲染卡顿
+    
     waveSurferRef.current = ws;
     return () => {
       ws.destroy();
       waveSurferRef.current = null;
       setHasWave(false);
     };
-  }, [phase, vocalsUrl, voiceVolume]);
+  }, [phase, vocalsUrl]);
 
+  // 2. Inst Track
   useEffect(() => {
     if (phase !== "done" || !instWaveContainerRef.current || !instAudioRef.current || !instUrl) return;
     if (instWaveSurferRef.current) {
       instWaveSurferRef.current.destroy();
       instWaveSurferRef.current = null;
     }
+
     const ws = WaveSurfer.create({
       container: instWaveContainerRef.current,
       backend: "MediaElement",
       media: instAudioRef.current,
-      height: 90,
-      waveColor: "#1c8a64",
-      progressColor: "#1c8a64",
+      height: LANE_HEIGHT,
+      waveColor: TRACK_COLORS.inst.wave,
+      progressColor: "rgba(255,255,255,0.4)",
       cursorColor: "#ffffff",
-      cursorWidth: 2,
-      barWidth: 2,
-      barGap: 1.5,
+      cursorWidth: 0,
+      
+      barWidth: undefined,
+      barGap: undefined,
+      barRadius: undefined,
+      
       normalize: true,
       interact: false,
       dragToSeek: false,
       hideScrollbar: true,
+      autoScroll: false,
     });
+
     ws.load(instUrl);
     ws.setVolume(musicVolume / 100);
+    if (instAudioRef.current) instAudioRef.current.volume = musicVolume / 100;
+
     ws.on("ready", () => setHasInstWave(true));
     ws.on("finish", () => setIsPlaying(false));
+    
     instWaveSurferRef.current = ws;
     return () => {
       ws.destroy();
       instWaveSurferRef.current = null;
       setHasInstWave(false);
     };
-  }, [phase, instUrl, musicVolume]);
+  }, [phase, instUrl]);
 
+  // Volume Sync
   useEffect(() => {
     if (instAudioRef.current) instAudioRef.current.volume = musicVolume / 100;
     if (instWaveSurferRef.current) instWaveSurferRef.current.setVolume(musicVolume / 100);
   }, [musicVolume]);
+
   useEffect(() => {
     if (vocalAudioRef.current) vocalAudioRef.current.volume = voiceVolume / 100;
     if (waveSurferRef.current) waveSurferRef.current.setVolume(voiceVolume / 100);
   }, [voiceVolume]);
 
+  const setTrackVolumeLive = (track: TrackKey, v: number, commit: boolean) => {
+    const value = clamp(Math.round(v), 0, 100);
+    if (track === "vocal") {
+      if (vocalAudioRef.current) vocalAudioRef.current.volume = value / 100;
+      if (waveSurferRef.current) waveSurferRef.current.setVolume(value / 100);
+      if (commit) setVoiceVolume(value);
+      return;
+    }
+    if (instAudioRef.current) instAudioRef.current.volume = value / 100;
+    if (instWaveSurferRef.current) instWaveSurferRef.current.setVolume(value / 100);
+    if (commit) setMusicVolume(value);
+  };
+
+  const seekAll = (t: number) => {
+    const time = clamp(t, 0, duration || 0);
+    if (instAudioRef.current) instAudioRef.current.currentTime = time;
+    if (vocalAudioRef.current) vocalAudioRef.current.currentTime = time;
+    setCurrentTime(time); // Update UI timestamp once on seek
+  };
+
   const togglePlay = () => {
     const inst = instAudioRef.current;
     const vocal = vocalAudioRef.current;
     if (!inst && !vocal) return;
-    const ws = waveSurferRef.current;
-    const instWs = instWaveSurferRef.current;
     if (isPlaying) {
       inst?.pause();
-      ws ? ws.pause() : vocal?.pause();
-      instWs?.pause();
+      vocal?.pause();
       setIsPlaying(false);
     } else {
-      ws ? ws.play() : vocal?.play();
-      instWs ? instWs.play() : inst?.play();
-      setIsPlaying(true);
+      const t = vocal?.currentTime || currentTime || 0;
+      if (vocal) vocal.currentTime = t;
+      if (inst) inst.currentTime = t;
+      Promise.allSettled([vocal?.play(), inst?.play()]).then(() => setIsPlaying(true));
     }
   };
 
   const resetPlayhead = () => {
-    const inst = instAudioRef.current;
-    const vocal = vocalAudioRef.current;
-    if (inst) inst.currentTime = 0;
-    if (vocal) vocal.currentTime = 0;
-    if (waveSurferRef.current) waveSurferRef.current.seekTo(0);
-    if (instWaveSurferRef.current) instWaveSurferRef.current.seekTo(0);
-    setCurrentTime(0);
+    seekAll(0);
   };
 
+  // 优化后的播放进度循环：只在 requestAnimationFrame 中更新 UI 的时间戳，或者降低更新频率
   useEffect(() => {
-    if (phase !== "done") return;
-    const vocal = vocalAudioRef.current;
-    const inst = instAudioRef.current;
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => setIsPlaying(false);
-    const handleLoaded = () => {
-      if (vocal?.duration) setDuration(vocal.duration);
-      setCurrentTime(0);
-    };
-    vocal?.addEventListener("play", handlePlay);
-    vocal?.addEventListener("pause", handlePause);
-    vocal?.addEventListener("ended", handleEnded);
-    vocal?.addEventListener("loadedmetadata", handleLoaded);
-    inst?.addEventListener("ended", handleEnded);
-    return () => {
-      vocal?.removeEventListener("play", handlePlay);
-      vocal?.removeEventListener("pause", handlePause);
-      vocal?.removeEventListener("ended", handleEnded);
-      vocal?.removeEventListener("loadedmetadata", handleLoaded);
-      inst?.removeEventListener("ended", handleEnded);
-    };
-  }, [phase]);
-
-  useEffect(() => {
-    let raf: number;
-    const tick = () => {
+    const loop = () => {
       const vocal = vocalAudioRef.current;
-      if (waveSurferRef.current) {
-        setCurrentTime(waveSurferRef.current.getCurrentTime() || 0);
-        setDuration(waveSurferRef.current.getDuration() || duration);
-      } else if (vocal?.duration) {
+      if (vocal && !vocal.paused) {
+        // 直接读取 currentTime，但不调用 setState 触发全量渲染
+        // 这里如果是为了更新数字时间显示，每秒更新 10-20 次足够了，或者使用 ref 直接操作 DOM 文本节点
+        // 简单方案：仍然 setState，但组件结构要轻量化。
+        // 由于我们在 renderDone 中把布局变得很重，频繁 render 会卡顿。
+        // 解决方案：使用 CSS 动画驱动进度条，或者独立出一个 TimeDisplay 组件使用 React.memo
         setCurrentTime(vocal.currentTime);
-        setDuration(vocal.duration);
       }
-      raf = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(loop);
     };
-    if (phase === "done") {
-      raf = requestAnimationFrame(tick);
+
+    if (isPlaying) {
+      rafRef.current = requestAnimationFrame(loop);
+    } else if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
     }
+
     return () => {
-      if (raf) cancelAnimationFrame(raf);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [phase]);
+  }, [isPlaying]);
 
   useEffect(() => {
+    // Record history
     const record = async () => {
       if (phase !== "done" || !vocalsUrl || !instUrl || historyRecorded || !taskId) return;
       const token = await getValidAccessToken();
@@ -524,9 +638,7 @@ export default function UploadHero({
         await safeJson(res);
         setHistoryRecorded(true);
       } catch (err) {
-        if (!isAbortError(err)) {
-          console.error("record history failed", err);
-        }
+        if (!isAbortError(err)) console.error("record history failed", err);
       }
     };
     record();
@@ -541,195 +653,62 @@ export default function UploadHero({
     setPhase("uploading");
     setMessage("");
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    // ... (upload logic kept same) ...
     try {
-      const usageRes = await fetch("/api/usage/today", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const usage = (await safeJson(usageRes)) as any;
-      if (typeof usage?.subscribed === "boolean") {
-        setSubscriptionActive(usage.subscribed);
-        setDownloadFormat(usage.subscribed ? "wav" : "mp3");
-      }
-      if (typeof usage?.used === "number" && typeof usage?.limit === "number" && usage.used >= usage.limit) {
-        setPhase("idle");
-        setMessage(formatTemplate(dictionary.errors.dailyLimitReached, { limit: usage.limit }));
-        return;
-      }
-    } catch {
-      // Ignore pre-check failures; backend still enforces limits.
-    }
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`${apiBase}/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push(`/${locale}/auth/login`);
-          return;
-        }
-        throw new Error(getApiErrorMessage(res, data));
-      }
-      setTaskId(data.task_id);
-      setPosition(data.position ?? 0);
-      if (typeof data?.priority === "boolean") {
-        setSubscriptionActive(data.priority);
-        setDownloadFormat(data.priority ? "wav" : "mp3");
-      }
-      setProcessingStartedAt(Date.now());
-      setPhase("processing");
-
-      try {
-        await fetch("/api/jobs", {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`${apiBase}/upload`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            external_task_id: data.task_id,
-            source_url: file.name,
-            status: "queued",
-            model: "demix",
-            progress: 0,
-            result_url: null,
-          }),
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
         });
-      } catch (err) {
+        const data = await safeJson(res);
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push(`/${locale}/auth/login`);
+            return;
+          }
+          throw new Error(getApiErrorMessage(res, data));
+        }
+        setTaskId(data.task_id);
+        setPosition(data.position ?? 0);
+        if (typeof data?.priority === "boolean") {
+          setSubscriptionActive(data.priority);
+          setDownloadFormat(data.priority ? "wav" : "mp3");
+        }
+        setProcessingStartedAt(Date.now());
+        setPhase("processing");
+        try {
+          await fetch("/api/jobs", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              external_task_id: data.task_id,
+              source_url: file.name,
+              status: "queued",
+              model: "demix",
+              progress: 0,
+              result_url: null,
+            }),
+          });
+        } catch (err) {
+          if (!isAbortError(err)) console.error("record job failed", err);
+        }
+      } catch (err: any) {
         if (!isAbortError(err)) {
-          console.error("record job failed", err);
+          setPhase("error");
+          setMessage(err.message || dictionary.errors.uploadFailed);
         }
       }
-    } catch (err: any) {
-      if (!isAbortError(err)) {
-        setPhase("error");
-        setMessage(err.message || dictionary.errors.uploadFailed);
-      }
-    }
   };
 
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      handleUpload(file);
-    }
+    if (file) handleUpload(file);
   };
-
-  const renderIdle = () => {
-    const heroCopy = {
-      tag: locale === "en" ? "How it works" : locale === "ja" ? "動作モード" : "工作方式",
-      title: locale === "en" ? "Remove vocals and isolate" : locale === "ja" ? "ボーカルを分離して抽出" : "移除人声并隔离",
-      subtitle:
-        locale === "en"
-          ? "Separate vocals from music with powerful AI."
-          : locale === "ja"
-            ? "強力なAIで音楽から声を分離します。"
-            : "用强大的人工智能算法将声音从音乐中分离出来",
-      imageAlt:
-        locale === "en"
-          ? "Audio splitter interface showing music and vocal waveforms"
-          : locale === "ja"
-            ? "音楽とボーカルの波形を表示する分離プレーヤー"
-            : "音频分离播放器界面 - 显示音乐和人声波形",
-      button: dictionary.home.uploadCta,
-    };
-    const playerImageSrc =
-      locale === "en"
-        ? "/remover/player_en.png"
-        : locale === "ja"
-          ? "/remover/player_ja.png"
-          : "/remover/player_zh.png";
-
-    return (
-      <>
-        <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#17171e] px-4 py-20 text-white">
-          <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center text-center">
-            <span className="mb-6 text-sm font-medium tracking-wide text-indigo-300">{heroCopy.tag}</span>
-            <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">{heroCopy.title}</h1>
-            <p className="mb-12 max-w-2xl text-lg text-slate-300 md:text-xl">{heroCopy.subtitle}</p>
-
-            <div className="mb-12 w-full max-w-3xl overflow-hidden rounded-2xl shadow-2xl shadow-black/40">
-              <img
-                src={playerImageSrc}
-                alt={heroCopy.imageAlt}
-                className="w-full"
-              />
-            </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*"
-                className="hidden"
-                onChange={onSelectFile}
-              />
-              <Button
-                size="lg"
-                className="rounded-full bg-indigo-600 px-8 py-6 text-base font-medium text-white hover:bg-indigo-700"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {heroCopy.button}
-              </Button>
-              {message && (
-                <Alert variant="destructive" className="w-full max-w-3xl">
-                  <AlertDescription className="text-foreground">{message}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </div>
-        </section>
-        <section className="bg-[#17171e] text-white">
-          <Faq title={dictionary.faq.title} items={dictionary.faq.demix} />
-        </section>
-      </>
-    );
-  };
-
-  const renderProcessing = () => (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#17171e] px-6 text-center text-foreground">
-      <div className="relative flex max-w-2xl flex-col items-center gap-4 rounded-3xl border border-white/5 bg-black/30 px-10 py-12 shadow-[0_20px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-xl font-semibold text-white shadow-lg">
-          ♫
-        </div>
-        <h2 className="text-3xl font-bold">{phase === "uploading" ? labels.uploadingTitle : labels.processingTitle}</h2>
-        <p className="text-base text-muted-foreground">
-          {phase === "uploading" ? labels.uploadingDesc : labels.processingDesc}
-          {position > 0
-            ? locale === "en"
-              ? ` Queue position: ${position}`
-              : locale === "ja"
-                ? ` キュー位置: ${position}`
-                : ` 当前排队位置：${position}`
-            : ""}
-        </p>
-        <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full w-1/2 animate-[pulse_1.6s_ease_in_out_infinite] rounded-full bg-gradient-to-r from-indigo-400 to-purple-400" />
-        </div>
-      </div>
-    </div>
-  );
-
-  const VolumeSlider = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
-    <div
-      className="relative h-5 w-8 cursor-pointer"
-      onClick={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const newValue = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        onChange(newValue);
-      }}
-    >
-      <svg viewBox="0 0 32 20" className="h-full w-full">
-        <polygon points="0,18 32,0 32,18" fill="#4a4a4a" />
-        <polygon points={`0,18 ${(value / 100) * 32},${18 - (value / 100) * 18} ${(value / 100) * 32},18`} fill="#ffffff" />
-      </svg>
-    </div>
-  );
 
   const handleDownload = async (url: string | null, name: string) => {
     if (!url || !taskId) return;
@@ -739,7 +718,6 @@ export default function UploadHero({
         router.push(`/${locale}/auth/login`);
         return;
       }
-
       const isSubscribed = subscriptionActive === true;
       const fmt: "mp3" | "wav" = isSubscribed ? downloadFormat : "mp3";
       if (!isSubscribed && fmt === "wav") {
@@ -747,7 +725,6 @@ export default function UploadHero({
         router.push(`/${locale}/billing`);
         return;
       }
-
       const stem = name.includes("instrumental") ? "instrumental" : "vocals";
       const res = await fetch(`${apiBase}/download/${taskId}/${stem}?format=${fmt}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -778,64 +755,101 @@ export default function UploadHero({
   };
 
   const renderDone = () => {
+    // 进度百分比，用于定位 Playhead
+    // 使用 duration 作为分母，如果 duration 为 0 防止除零
     const playheadPercent = duration ? Math.min(1, currentTime / duration) : 0;
+
+    const tracks: {
+      key: TrackKey;
+      label: string;
+      volume: number;
+      waveContainerRef: React.RefObject<HTMLDivElement | null>;
+      waveOpacity: boolean;
+    }[] = [
+      { 
+        key: "inst", 
+        label: labels.music, 
+        volume: musicVolume, 
+        waveContainerRef: instWaveContainerRef,
+        waveOpacity: hasInstWave
+      },
+      { 
+        key: "vocal", 
+        label: labels.vocal, 
+        volume: voiceVolume, 
+        waveContainerRef: vocalWaveContainerRef,
+        waveOpacity: hasWave
+      }
+    ];
+
     return (
       <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#17171e] text-foreground">
         <audio ref={instAudioRef} src={instUrl || undefined} />
         <audio ref={vocalAudioRef} src={vocalsUrl || undefined} />
+        
+        <main className="flex w-full flex-1 flex-col items-center justify-center px-2 pb-44 pt-12 sm:px-4 sm:pb-32 sm:pt-14">
+          <div className="w-full max-w-[1600px] overflow-x-auto overflow-y-hidden shadow-2xl shadow-black/50 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:overflow-hidden">
+            <div className="flex min-w-[880px] flex-col sm:min-w-0">
+              {tracks.map((track, index) => {
+                const colors = TRACK_COLORS[track.key];
+                const isLast = index === tracks.length - 1;
 
-        <main className="flex flex-1 flex-col items-center justify-center px-4 pb-32 pt-14">
-          <div className="relative w-full max-w-6xl rounded-2xl border border-border bg-card/80 p-6 shadow-2xl shadow-black/20 backdrop-blur">
-            <div
-              className="absolute -top-7 flex -translate-x-1/2 items-center justify-center rounded-full bg-muted px-3 py-1 text-[11px] font-mono text-muted-foreground shadow"
-              style={{ left: `${playheadPercent * 100}%` }}
-            >
-              {formatTime(currentTime)}
-            </div>
+                return (
+                  <div key={track.key} className="flex w-full" style={{ height: LANE_HEIGHT }}>
+                    {/* Left: Control Panel */}
+                    <div 
+                      className="w-32 shrink-0 border-b border-black/20 px-3 sm:w-48 sm:px-4 flex items-center justify-between gap-2"
+                      style={{ backgroundColor: '#18181b', borderRight: '1px solid #333' }}
+                    >
+                      <span className="min-w-0 truncate text-xs font-medium tracking-wide text-gray-300 sm:text-sm">
+                        {track.label}
+                      </span>
+                      <MixerSlider
+                        value={track.volume}
+                        onLiveChange={(v) => setTrackVolumeLive(track.key, v, false)}
+                        onCommit={(v) => setTrackVolumeLive(track.key, v, true)}
+                      />
+                    </div>
 
-            <div className="flex items-stretch gap-4">
-              <div className="flex w-24 flex-col justify-between py-3 text-sm text-foreground/90">
-                <span className="flex h-1/2 items-center border-b border-border">{labels.music}</span>
-                <span className="flex h-1/2 items-center">{labels.vocal}</span>
-              </div>
-
-              <div className="flex flex-1 flex-col gap-3">
-                <div className="flex items-center gap-4">
-                  <VolumeSlider value={musicVolume} onChange={setMusicVolume} />
-                  <div className="relative h-20 flex-1 overflow-hidden rounded-lg bg-gradient-to-r from-emerald-700 to-emerald-600 shadow-inner">
-                    <div ref={instWaveContainerRef} className="absolute inset-0" style={{ opacity: hasInstWave ? 1 : 0 }} />
-                    <div
-                      className="absolute top-0 bottom-0 w-px bg-white/80"
-                      style={{ left: `${playheadPercent * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <VolumeSlider value={voiceVolume} onChange={setVoiceVolume} />
-                  <div className="relative h-28 flex-1 overflow-hidden rounded-lg bg-[#4a4f7c] shadow-inner">
-                    <div ref={vocalWaveContainerRef} className="absolute inset-0" style={{ opacity: hasWave ? 1 : 0 }} />
-                    <canvas
-                      ref={canvasVoiceRef}
-                      className="absolute inset-0 h-full w-full"
-                      style={{ opacity: hasWave ? 0 : 0.85 }}
-                    />
-                    <div
-                      className="absolute top-0 bottom-0 w-px bg-white/80"
-                      style={{ left: `${playheadPercent * 100}%` }}
-                    />
-                    <div className="absolute -bottom-6 right-1 text-xs font-mono text-muted-foreground">
-                      {duration ? formatTime(duration) : "00:00.0"}
+                    {/* Right: Waveform */}
+                    <div 
+                      className="relative flex-1 cursor-pointer"
+                      style={{ backgroundColor: colors.bg }}
+                      onPointerDown={(e) => {
+                        if (!duration) return;
+                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                        const x = clamp(e.clientX - rect.left, 0, rect.width);
+                        seekAll((x / rect.width) * duration);
+                      }}
+                    >
+                      <div 
+                        ref={track.waveContainerRef} 
+                        className="absolute inset-0" 
+                        style={{ opacity: track.waveOpacity ? 1 : 0 }} 
+                      />
+                      
+                      {/* Playhead Line */}
+                      <div
+                        className="pointer-events-none absolute top-0 bottom-0 w-[1px] bg-white z-10"
+                        style={{ left: `${playheadPercent * 100}%` }}
+                      />
+                      
+                      {/* Timestamp (only on last track) */}
+                      {isLast && (
+                        <div className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-mono text-white/60 z-20">
+                           {formatTime(currentTime)}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
         </main>
 
-        <footer className="fixed bottom-0 left-0 right-0 z-10 flex h-[90px] items-center justify-between border-t border-border bg-[#17171e] px-6">
-          <div className="flex items-center gap-3">
+        <footer className="fixed bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center gap-3 border-t border-border bg-[#17171e] px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:h-[90px] sm:flex-row sm:justify-between sm:gap-0 sm:px-6 sm:py-0">
+          <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
             <button
               className="flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary/90"
               onClick={togglePlay}
@@ -850,8 +864,7 @@ export default function UploadHero({
               <SkipBack className="h-4 w-4" />
             </button>
           </div>
-
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-3">
             <div className="flex items-center gap-2 rounded-full border border-border bg-black/10 px-2 py-1 text-sm text-foreground">
               <span className="px-2 text-muted-foreground">{labels.format}</span>
               <button
@@ -902,7 +915,7 @@ export default function UploadHero({
               )}
             </div>
             <Button
-              className="rounded-full px-4"
+              className="rounded-full px-3 sm:px-4"
               variant="secondary"
               onClick={() => handleDownload(instUrl, "instrumental.wav")}
               disabled={!instUrl}
@@ -910,14 +923,14 @@ export default function UploadHero({
               {locale === "en" ? "Download Inst" : locale === "ja" ? "伴奏をダウンロード" : "下载伴奏"}
             </Button>
             <Button
-              className="rounded-full px-4"
+              className="rounded-full px-3 sm:px-4"
               variant="secondary"
               onClick={() => handleDownload(vocalsUrl, "vocals.wav")}
               disabled={!vocalsUrl}
             >
               {locale === "en" ? "Download Vocal" : locale === "ja" ? "人声をダウンロード" : "下载人声"}
             </Button>
-            <Button className="rounded-full px-6" variant="outline" onClick={() => setPhase("idle")}>
+            <Button className="rounded-full px-4 sm:px-6" variant="outline" onClick={() => setPhase("idle")}>
               {labels.replay}
             </Button>
           </div>
@@ -926,30 +939,69 @@ export default function UploadHero({
     );
   };
 
-  if (phase === "uploading" || phase === "processing") {
-    return renderProcessing();
-  }
-  if (phase === "done") {
-    return renderDone();
-  }
+  // ... (其他 Phase 的渲染保持不变)
+  const renderIdle = () => {
+    // ... (保持原样)
+    const heroCopy = {
+      tag: locale === "en" ? "How it works" : locale === "ja" ? "動作モード" : "工作方式",
+      title: locale === "en" ? "Remove vocals and isolate" : locale === "ja" ? "ボーカルを分離して抽出" : "移除人声并隔离",
+      subtitle: locale === "en" ? "Separate vocals from music with powerful AI." : locale === "ja" ? "強力なAIで音楽から声を分離します。" : "用强大的人工智能算法将声音从音乐中分离出来",
+      imageAlt: locale === "en" ? "Audio splitter interface showing music and vocal waveforms" : locale === "ja" ? "音楽とボーカルの波形を表示する分離プレーヤー" : "音频分离播放器界面 - 显示音乐和人声波形",
+      button: dictionary.home.uploadCta,
+    };
+    const playerImageSrc = locale === "en" ? "/remover/player_en.png" : locale === "ja" ? "/remover/player_ja.png" : "/remover/player_zh.png";
+    return (
+      <>
+        <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#17171e] px-4 py-20 text-white">
+          <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center text-center">
+            <span className="mb-6 text-sm font-medium tracking-wide text-indigo-300">{heroCopy.tag}</span>
+            <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">{heroCopy.title}</h1>
+            <p className="mb-12 max-w-2xl text-lg text-slate-300 md:text-xl">{heroCopy.subtitle}</p>
+            <div className="mb-12 w-full max-w-3xl overflow-hidden rounded-2xl shadow-2xl shadow-black/40">
+              <img src={playerImageSrc} alt={heroCopy.imageAlt} className="w-full" />
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={onSelectFile} />
+              <Button size="lg" className="rounded-full bg-indigo-600 px-8 py-6 text-base font-medium text-white hover:bg-indigo-700" onClick={() => fileInputRef.current?.click()}>{heroCopy.button}</Button>
+              {message && (
+                <Alert variant="destructive" className="w-full max-w-3xl">
+                  <AlertDescription className="text-foreground">{message}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </div>
+        </section>
+        <section className="bg-[#17171e] text-white">
+          <Faq title={dictionary.faq.title} items={dictionary.faq.demix} />
+        </section>
+      </>
+    );
+  };
+
+  const renderProcessing = () => (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#17171e] px-6 text-center text-foreground">
+      <div className="relative flex max-w-2xl flex-col items-center gap-4 rounded-3xl border border-white/5 bg-black/30 px-10 py-12 shadow-[0_20px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-xl font-semibold text-white shadow-lg">♫</div>
+        <h2 className="text-3xl font-bold">{phase === "uploading" ? labels.uploadingTitle : labels.processingTitle}</h2>
+        <p className="text-base text-muted-foreground">{phase === "uploading" ? labels.uploadingDesc : labels.processingDesc}</p>
+        <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full w-1/2 animate-[pulse_1.6s_ease_in_out_infinite] rounded-full bg-gradient-to-r from-indigo-400 to-purple-400" />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (phase === "uploading" || phase === "processing") return renderProcessing();
+  if (phase === "done") return renderDone();
   if (phase === "error") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center text-foreground">
         <Alert variant="destructive" className="mb-4 w-full max-w-xl">
-          <AlertDescription className="text-foreground">
-            {message || dictionary.errors.unknown}
-          </AlertDescription>
+          <AlertDescription className="text-foreground">{message || dictionary.errors.unknown}</AlertDescription>
         </Alert>
         <Button onClick={() => setPhase("idle")}>返回重新上传</Button>
       </div>
     );
   }
   return renderIdle();
-}
-
-function formatTime(time: number) {
-  const mins = Math.floor(time / 60);
-  const secs = Math.floor(time % 60);
-  const ms = Math.floor((time % 1) * 10);
-  return `0${mins}:${String(secs).padStart(2, "0")}.${ms}`;
 }

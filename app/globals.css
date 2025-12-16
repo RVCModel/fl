@@ -150,11 +150,14 @@
     @apply bg-selection text-selection-foreground;
   }
   html {
-    @apply overscroll-y-none scroll-smooth;
+    @apply overscroll-x-none overscroll-y-none scroll-smooth;
+    overflow-x: hidden;
   }
   body {
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
   }
 
   [data-slot="layout"] {
