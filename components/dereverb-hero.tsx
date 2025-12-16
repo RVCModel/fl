@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import WaveSurfer from "wavesurfer.js";
 import { Button } from "@/components/ui/button";
@@ -171,6 +172,7 @@ export default function DereverbHero({
   const [phase, setPhase] = useState<Phase>("idle");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [position, setPosition] = useState<number>(0);
+  const [etaSeconds, setEtaSeconds] = useState<number>(0);
 
   const [dryUrl, setDryUrl] = useState<string | null>(null);
   const [residualUrl, setResidualUrl] = useState<string | null>(null);
@@ -193,8 +195,14 @@ export default function DereverbHero({
   const notFoundStreakRef = useRef(0);
   const STORAGE_KEY = "vofl:dereverb-state";
 
-  const isAbortError = (err: unknown) =>
-    err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError");
+  const isAbortError = (err: unknown) => {
+    if (err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError")) return true;
+    if (err && typeof err === "object" && "name" in err) {
+      const name = (err as any).name;
+      if (name === "AbortError" || name === "NotAllowedError") return true;
+    }
+    return false;
+  };
 
   const residualAudioRef = useRef<HTMLAudioElement | null>(null);
   const dryAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -249,7 +257,7 @@ export default function DereverbHero({
     const detail = data?.detail ?? data ?? {};
     const code = detail?.code;
     if (code === "FILE_TOO_LARGE") {
-      return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: detail?.max_mb ?? 50 });
+      return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: detail?.max_mb ?? 200 });
     }
     if (code === "DECODE_FAILED") return dictionary.errors.decodeFailed;
     if (code === "DURATION_TOO_SHORT") {
@@ -259,7 +267,7 @@ export default function DereverbHero({
       return formatTemplate(dictionary.errors.dailyLimitReached, { limit: detail?.limit ?? 10 });
     }
     if (code === "UNSUPPORTED_FILE_TYPE") return dictionary.errors.unsupportedFileType;
-    if (res.status === 413) return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: 50 });
+    if (res.status === 413) return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: 200 });
     return dictionary.errors.uploadFailed;
   };
 
@@ -310,6 +318,7 @@ export default function DereverbHero({
         setDryUrl(normalizeBackendUrl(saved.dryUrl) || null);
         setResidualUrl(normalizeBackendUrl(saved.residualUrl) || null);
         setPosition(saved.position || 0);
+        setEtaSeconds(typeof saved.etaSeconds === "number" ? saved.etaSeconds : 0);
         setProcessingStartedAt(typeof saved.startedAt === "number" ? saved.startedAt : saved.savedAt || null);
       }
     } catch (err) {
@@ -327,6 +336,7 @@ export default function DereverbHero({
         dryUrl,
         residualUrl,
         position,
+        etaSeconds,
         startedAt: processingStartedAt ?? undefined,
         savedAt: Date.now(),
       };
@@ -334,7 +344,11 @@ export default function DereverbHero({
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
-  }, [phase, taskId, dryUrl, residualUrl, position, processingStartedAt]);
+  }, [phase, taskId, dryUrl, residualUrl, position, etaSeconds, processingStartedAt]);
+
+  useEffect(() => {
+    if (phase !== "processing") setEtaSeconds(0);
+  }, [phase]);
 
   // ... (Polling Logic - unchanged)
   useEffect(() => {
@@ -375,24 +389,27 @@ export default function DereverbHero({
               if (timer) clearInterval(timer);
               return;
             }
-            notFoundStreakRef.current = 0;
-            const data = await safeJson(res);
-            setPosition(data.position ?? 0);
-            if (data.status === "completed") {
-              setDryUrl(normalizeBackendUrl(data.dereverb_url || data.dereverbUrl));
-              setResidualUrl(normalizeBackendUrl(data.reverb_url || data.reverbUrl));
-              setPhase("done");
-              setMessage("");
-              if (timer) clearInterval(timer);
-              // job update logic...
-              try { await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ external_task_id: taskId, source_url: `task:${taskId}`, status: "completed", model: "dereverb", progress: 1, result_url: data.dereverb_url || data.dereverbUrl || null }) }); } catch {}
-            } else if (data.status === "failed") {
-              setPhase("error");
-              setMessage(data.error || "处理失败");
-              if (timer) clearInterval(timer);
-              // job update logic...
-              try { await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ external_task_id: taskId, source_url: `task:${taskId}`, status: "failed", model: "dereverb", progress: 1, result_url: null }) }); } catch {}
-            }
+             notFoundStreakRef.current = 0;
+             const data = await safeJson(res);
+             setPosition(data.position ?? 0);
+             setEtaSeconds(typeof data.eta_seconds === "number" ? data.eta_seconds : 0);
+             if (data.status === "completed") {
+               setDryUrl(normalizeBackendUrl(data.dereverb_url || data.dereverbUrl));
+               setResidualUrl(normalizeBackendUrl(data.reverb_url || data.reverbUrl));
+               setPhase("done");
+               setMessage("");
+               setEtaSeconds(0);
+               if (timer) clearInterval(timer);
+               // job update logic...
+               try { await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ external_task_id: taskId, source_url: `task:${taskId}`, status: "completed", model: "dereverb", progress: 1, result_url: data.dereverb_url || data.dereverbUrl || null }) }); } catch {}
+             } else if (data.status === "failed") {
+               setPhase("error");
+               setMessage(data.error || "处理失败");
+               setEtaSeconds(0);
+               if (timer) clearInterval(timer);
+               // job update logic...
+               try { await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ external_task_id: taskId, source_url: `task:${taskId}`, status: "failed", model: "dereverb", progress: 1, result_url: null }) }); } catch {}
+             }
         } catch (err) {
            // ...
         }
@@ -429,7 +446,16 @@ export default function DereverbHero({
       hideScrollbar: true,
       autoScroll: false,
     });
-    ws.load(dryUrl);
+    try {
+      const ret = (ws as any).load(dryUrl);
+      if (ret && typeof ret.then === "function") {
+        ret.catch((err: unknown) => {
+          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+        });
+      }
+    } catch (err) {
+      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+    }
     ws.setVolume(dryVolume / 100);
     if (dryAudioRef.current) dryAudioRef.current.volume = dryVolume / 100;
 
@@ -465,7 +491,16 @@ export default function DereverbHero({
       hideScrollbar: true,
       autoScroll: false,
     });
-    ws.load(residualUrl);
+    try {
+      const ret = (ws as any).load(residualUrl);
+      if (ret && typeof ret.then === "function") {
+        ret.catch((err: unknown) => {
+          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+        });
+      }
+    } catch (err) {
+      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+    }
     ws.setVolume(residualVolume / 100);
     if (residualAudioRef.current) residualAudioRef.current.volume = residualVolume / 100;
     ws.on("ready", () => setHasResidualWave(true));
@@ -645,6 +680,7 @@ export default function DereverbHero({
       }
       setTaskId(data.task_id);
       setPosition(data.position ?? 0);
+      setEtaSeconds(typeof data.eta_seconds === "number" ? data.eta_seconds : 0);
       if (typeof data?.priority === "boolean") {
         setSubscriptionActive(data.priority);
         setDownloadFormat(data.priority ? "wav" : "mp3");
@@ -684,6 +720,7 @@ export default function DereverbHero({
     setHasDryWave(false);
     setTaskId(null);
     setPosition(0);
+    setEtaSeconds(0);
     setResidualUrl(null);
     setDryUrl(null);
     setProcessingStartedAt(null);
@@ -781,8 +818,58 @@ export default function DereverbHero({
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-xl font-semibold text-white shadow-lg">?</div>
         <h2 className="text-3xl font-bold">{phase === "uploading" ? labels.uploadingTitle : labels.processingTitle}</h2>
         <p className="text-base text-muted-foreground">
-          {phase === "uploading" ? labels.uploadingDesc : labels.processingDesc}
-          {position > 0 ? (locale === "en" ? ` Queue position: ${position}` : locale === "ja" ? ` キュー位置: ${position}` : ` 当前排队位置：${position}`) : ""}
+          {phase === "uploading" ? (
+            labels.uploadingDesc
+          ) : (
+            <>
+              {labels.processingDesc}
+              {position > 0 ? (
+                locale === "en" ? (
+                  <> Ahead in queue: {position}.</>
+                ) : locale === "ja" ? (
+                  <> 前方待ち人数: {position}。</>
+                ) : (
+                  <> 前方排队人数：{position}。</>
+                )
+              ) : null}
+              {etaSeconds > 0 ? (
+                locale === "en" ? (
+                  <> Est. wait: {Math.max(0, Math.round(etaSeconds))}s.</>
+                ) : locale === "ja" ? (
+                  <> 予想到着: {Math.max(0, Math.round(etaSeconds))} 秒。</>
+                ) : (
+                  <> 预计等待：{Math.max(0, Math.round(etaSeconds))} 秒。</>
+                )
+              ) : null}
+              {subscriptionActive !== true ? (
+                <>
+                  {" "}
+                  {locale === "en" ? (
+                    <>
+                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                        Subscribe
+                      </Link>{" "}
+                      to skip the queue.
+                    </>
+                  ) : locale === "ja" ? (
+                    <>
+                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                        サブスク
+                      </Link>
+                      で待ち時間なし。
+                    </>
+                  ) : (
+                    <>
+                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                        订阅
+                      </Link>
+                      会员免除排队。
+                    </>
+                  )}
+                </>
+              ) : null}
+            </>
+          )}
         </p>
         <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
           <div className="h-full w-1/2 animate-[pulse_1.6s_ease_in_out_infinite] rounded-full bg-gradient-to-r from-indigo-400 to-purple-400" />

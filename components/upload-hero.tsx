@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import WaveSurfer from "wavesurfer.js";
 import { Button } from "@/components/ui/button";
@@ -175,6 +176,7 @@ export default function UploadHero({
   const [phase, setPhase] = useState<Phase>("idle");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [position, setPosition] = useState<number>(0);
+  const [etaSeconds, setEtaSeconds] = useState<number>(0);
   const [vocalsUrl, setVocalsUrl] = useState<string | null>(null);
   const [instUrl, setInstUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
@@ -241,7 +243,7 @@ export default function UploadHero({
     const detail = data?.detail ?? data ?? {};
     const code = detail?.code;
     if (code === "FILE_TOO_LARGE") {
-      return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: detail?.max_mb ?? 50 });
+      return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: detail?.max_mb ?? 200 });
     }
     if (code === "DECODE_FAILED") return dictionary.errors.decodeFailed;
     if (code === "DURATION_TOO_SHORT") {
@@ -251,12 +253,14 @@ export default function UploadHero({
       return formatTemplate(dictionary.errors.dailyLimitReached, { limit: detail?.limit ?? 10 });
     }
     if (code === "UNSUPPORTED_FILE_TYPE") return dictionary.errors.unsupportedFileType;
-    if (res.status === 413) return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: 50 });
+    if (res.status === 413) return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: 200 });
     return dictionary.errors.uploadFailed;
   };
 
   const isAbortError = (err: unknown) => {
-    return err instanceof DOMException && err.name === "AbortError";
+    if (err instanceof DOMException && err.name === "AbortError") return true;
+    if (err && typeof err === "object" && "name" in err && (err as any).name === "AbortError") return true;
+    return false;
   };
 
   useEffect(() => {
@@ -299,6 +303,7 @@ export default function UploadHero({
         vocalsUrl?: string;
         instUrl?: string;
         position?: number;
+        etaSeconds?: number;
         savedAt?: number;
         startedAt?: number;
       };
@@ -313,6 +318,7 @@ export default function UploadHero({
         setVocalsUrl(normalizeBackendUrl(saved.vocalsUrl) || null);
         setInstUrl(normalizeBackendUrl(saved.instUrl) || null);
         setPosition(saved.position || 0);
+        setEtaSeconds(typeof saved.etaSeconds === "number" ? saved.etaSeconds : 0);
         setProcessingStartedAt(typeof saved.startedAt === "number" ? saved.startedAt : saved.savedAt || null);
       }
     } catch (err) {
@@ -329,6 +335,7 @@ export default function UploadHero({
         vocalsUrl,
         instUrl,
         position,
+        etaSeconds,
         startedAt: processingStartedAt ?? undefined,
         savedAt: Date.now(),
       };
@@ -336,7 +343,11 @@ export default function UploadHero({
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
-  }, [phase, taskId, vocalsUrl, instUrl, position, processingStartedAt]);
+  }, [phase, taskId, vocalsUrl, instUrl, position, etaSeconds, processingStartedAt]);
+
+  useEffect(() => {
+    if (phase !== "processing") setEtaSeconds(0);
+  }, [phase]);
 
   // ... (Polling logic kept same) ...
   useEffect(() => {
@@ -378,11 +389,13 @@ export default function UploadHero({
           notFoundStreakRef.current = 0;
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
+          setEtaSeconds(typeof data.eta_seconds === "number" ? data.eta_seconds : 0);
           if (data.status === "completed") {
             setVocalsUrl(normalizeBackendUrl(data.vocals_url || data.vocalsUrl));
             setInstUrl(normalizeBackendUrl(data.instrumental_url || data.instrumentalUrl));
             setPhase("done");
             setMessage("");
+            setEtaSeconds(0);
             if (timer) clearInterval(timer);
             setHistoryRecorded(false);
             try {
@@ -407,6 +420,7 @@ export default function UploadHero({
           } else if (data.status === "failed") {
             setPhase("error");
             setMessage(data.error || "处理失败");
+            setEtaSeconds(0);
             if (timer) clearInterval(timer);
             try {
               await fetch("/api/jobs", {
@@ -473,7 +487,16 @@ export default function UploadHero({
       autoScroll: false,
     });
 
-    ws.load(vocalsUrl);
+    try {
+      const ret = (ws as any).load(vocalsUrl);
+      if (ret && typeof ret.then === "function") {
+        ret.catch((err: unknown) => {
+          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+        });
+      }
+    } catch (err) {
+      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+    }
     ws.setVolume(voiceVolume / 100);
     if (vocalAudioRef.current) vocalAudioRef.current.volume = voiceVolume / 100;
 
@@ -523,7 +546,16 @@ export default function UploadHero({
       autoScroll: false,
     });
 
-    ws.load(instUrl);
+    try {
+      const ret = (ws as any).load(instUrl);
+      if (ret && typeof ret.then === "function") {
+        ret.catch((err: unknown) => {
+          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+        });
+      }
+    } catch (err) {
+      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+    }
     ws.setVolume(musicVolume / 100);
     if (instAudioRef.current) instAudioRef.current.volume = musicVolume / 100;
 
@@ -983,7 +1015,60 @@ export default function UploadHero({
       <div className="relative flex max-w-2xl flex-col items-center gap-4 rounded-3xl border border-white/5 bg-black/30 px-10 py-12 shadow-[0_20px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-xl font-semibold text-white shadow-lg">♫</div>
         <h2 className="text-3xl font-bold">{phase === "uploading" ? labels.uploadingTitle : labels.processingTitle}</h2>
-        <p className="text-base text-muted-foreground">{phase === "uploading" ? labels.uploadingDesc : labels.processingDesc}</p>
+        <p className="text-base text-muted-foreground">
+          {phase === "uploading" ? (
+            labels.uploadingDesc
+          ) : (
+            <>
+              {labels.processingDesc}
+              {position > 0 ? (
+                locale === "en" ? (
+                  <> Ahead in queue: {position}.</>
+                ) : locale === "ja" ? (
+                  <> 前方待ち人数: {position}。</>
+                ) : (
+                  <> 前方排队人数：{position}。</>
+                )
+              ) : null}
+              {etaSeconds > 0 ? (
+                locale === "en" ? (
+                  <> Est. wait: {Math.max(0, Math.round(etaSeconds))}s.</>
+                ) : locale === "ja" ? (
+                  <> 予想到着: {Math.max(0, Math.round(etaSeconds))} 秒。</>
+                ) : (
+                  <> 预计等待：{Math.max(0, Math.round(etaSeconds))} 秒。</>
+                )
+              ) : null}
+              {subscriptionActive !== true ? (
+                <>
+                  {" "}
+                  {locale === "en" ? (
+                    <>
+                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                        Subscribe
+                      </Link>{" "}
+                      to skip the queue.
+                    </>
+                  ) : locale === "ja" ? (
+                    <>
+                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                        サブスク
+                      </Link>
+                      で待ち時間なし。
+                    </>
+                  ) : (
+                    <>
+                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                        订阅
+                      </Link>
+                      会员免除排队。
+                    </>
+                  )}
+                </>
+              ) : null}
+            </>
+          )}
+        </p>
         <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
           <div className="h-full w-1/2 animate-[pulse_1.6s_ease_in_out_infinite] rounded-full bg-gradient-to-r from-indigo-400 to-purple-400" />
         </div>

@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     .maybeSingle();
 
   const subscribed = !!billing?.subscription_active;
-  const limit = subscribed ? 200 : 10;
+  const limit = null;
 
   const start = new Date();
   start.setUTCHours(0, 0, 0, 0);
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     subscribed,
     used,
     limit,
-    remaining: Math.max(0, limit - used),
+    remaining: null,
+    unlimited: true,
   });
 }
-

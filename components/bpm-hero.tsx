@@ -44,9 +44,15 @@ export default function BpmHero({ dictionary, locale }: { dictionary: Dictionary
   );
 
   const handleFile = async (file: File) => {
-    const tooLarge = file.size > 50 * 1024 * 1024;
+    const tooLarge = file.size > 200 * 1024 * 1024;
     if (tooLarge) {
-      setMessage(labels.sizeError);
+      setMessage(
+        locale === "en"
+          ? "File is too large (max 200MB)"
+          : locale === "ja"
+            ? "ファイルサイズが大きすぎます（最大200MB）"
+            : "文件过大（最大200MB）",
+      );
       return;
     }
     setPhase("uploading");

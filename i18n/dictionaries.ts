@@ -185,7 +185,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       demix: [
         {
           q: "上传失败",
-          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 50 MB。若文件超过该限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
+          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 200 MB；订阅会员上传上限为 500 MB。\n如文件超过对应限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
         },
         {
           q: "最小音频上传时长",
@@ -193,13 +193,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "订阅用户与非订阅用户的区别",
-          a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下限制策略：\n\n非订阅用户\n- 每日最多可使用 10 次 去人声 / 去混响处理\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日最高可使用 200 次 去人声 / 去混响处理\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需更高频率的使用或更完整的音频输出能力，建议升级为订阅会员以获得完整功能体验。",
+          a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下策略：\n\n非订阅用户\n- 每日不限次数\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日不限次数\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需免排队处理或下载 WAV，建议升级为订阅会员。",
         },
       ],
       demucs: [
         {
           q: "上传失败",
-          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 50 MB。若文件超过该限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
+          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 200 MB；订阅会员上传上限为 500 MB。\n如文件超过对应限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
         },
         {
           q: "最小音频上传时长",
@@ -207,13 +207,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "订阅用户与非订阅用户的区别",
-          a: "鉴于音频处理（去人声 / 去混响 / 乐器分离）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下限制策略：\n\n非订阅用户\n- 每日最多可使用 10 次处理\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日最高可使用 200 次处理\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需更高频率的使用或更完整的音频输出能力，建议升级为订阅会员以获得完整功能体验。",
+          a: "鉴于音频处理（去人声 / 去混响 / 乐器分离）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下策略：\n\n非订阅用户\n- 每日不限次数\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日不限次数\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需免排队处理或下载 WAV，建议升级为订阅会员。",
         },
       ],
       dereverb: [
         {
           q: "上传失败",
-          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 50 MB。若文件超过该限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
+          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 200 MB；订阅会员上传上限为 500 MB。\n如文件超过对应限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
         },
         {
           q: "最小音频上传时长",
@@ -225,13 +225,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "订阅用户与非订阅用户的区别",
-          a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下限制策略：\n\n非订阅用户\n- 每日最多可使用 10 次 去人声 / 去混响处理\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日最高可使用 200 次 去人声 / 去混响处理\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需更高频率的使用或更完整的音频输出能力，建议升级为订阅会员以获得完整功能体验。",
+          a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下策略：\n\n非订阅用户\n- 每日不限次数\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日不限次数\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需免排队处理或下载 WAV，建议升级为订阅会员。",
         },
       ],
       bpm: [
         {
           q: "上传失败",
-          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 50 MB。若文件超过该限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
+          a: "当前服务器已启用严格的音频处理与资源调度策略。\n未订阅用户单个音频文件的最大支持上传大小为 200 MB；订阅会员上传上限为 500 MB。\n如文件超过对应限制，将导致上传失败。\n如在符合规格的情况下仍出现异常，请及时与我们联系以便进一步排查。",
         },
         {
           q: "最小音频上传时长",
@@ -239,7 +239,7 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "订阅用户与非订阅用户的区别",
-          a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下限制策略：\n\n非订阅用户\n- 每日最多可使用 10 次 去人声 / 去混响处理\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日最高可使用 200 次 去人声 / 去混响处理\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需更高频率的使用或更完整的音频输出能力，建议升级为订阅会员以获得完整功能体验。",
+          a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下策略：\n\n非订阅用户\n- 每日不限次数\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日不限次数\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需免排队处理或下载 WAV，建议升级为订阅会员。",
         },
       ],
     },
@@ -247,9 +247,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       title: "订阅服务",
       subtitle: "升级订阅以获得更高额度、更快速度与更高质量输出。",
       nonSubscriberTitle: "未订阅用户权益",
-      nonSubscriberBenefits: ["需要排队", "每日最多 10 次", "支持 MP3 格式"],
+      nonSubscriberBenefits: ["需要排队", "每日不限次数", "上传限制 200MB", "支持 MP3 格式"],
       subscriberTitle: "订阅会员权益",
-      subscriberBenefits: ["每日最高 200 次使用", "优先处理，无需排队", "支持下载原始 WAV 音频"],
+      subscriberBenefits: ["每日不限次数", "上传限制 500MB", "优先处理，无需排队", "支持下载原始 WAV 音频"],
       subscribe: "立即订阅",
       manage: "管理订阅",
       active: "已订阅",
@@ -417,7 +417,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       demix: [
         {
           q: "Upload failed",
-          a: "The server uses strict audio-processing and resource scheduling policies.\nFor non-subscribers, the maximum upload size per file is 50 MB. Files above this limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
+          a: "The server uses strict audio-processing and resource scheduling policies.\nMax upload size per file: 200 MB for non-subscribers, 500 MB for subscribers.\nFiles above the applicable limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
         },
         {
           q: "Minimum audio duration",
@@ -425,13 +425,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "Subscriber vs non-subscriber",
-          a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different limits:\n\nNon-subscribers\n- Up to 10 vocal removal / dereverb jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Up to 200 vocal removal / dereverb jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you need higher usage limits or full-quality outputs, consider upgrading to a subscription.",
+          a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different policies:\n\nNon-subscribers\n- Unlimited jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Unlimited jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you want priority processing and WAV downloads, consider upgrading to a subscription.",
         },
       ],
       demucs: [
         {
           q: "Upload failed",
-          a: "The server uses strict audio-processing and resource scheduling policies.\nFor non-subscribers, the maximum upload size per file is 50 MB. Files above this limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
+          a: "The server uses strict audio-processing and resource scheduling policies.\nMax upload size per file: 200 MB for non-subscribers, 500 MB for subscribers.\nFiles above the applicable limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
         },
         {
           q: "Minimum audio duration",
@@ -439,13 +439,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "Subscriber vs non-subscriber",
-          a: "Audio processing (vocal removal / dereverb / 4-stem separation) is resource-intensive, so we apply different limits:\n\nNon-subscribers\n- Up to 10 jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Up to 200 jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you need higher usage limits or full-quality outputs, consider upgrading to a subscription.",
+          a: "Audio processing (vocal removal / dereverb / 4-stem separation) is resource-intensive, so we apply different policies:\n\nNon-subscribers\n- Unlimited jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Unlimited jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you want priority processing and WAV downloads, consider upgrading to a subscription.",
         },
       ],
       dereverb: [
         {
           q: "Upload failed",
-          a: "The server uses strict audio-processing and resource scheduling policies.\nFor non-subscribers, the maximum upload size per file is 50 MB. Files above this limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
+          a: "The server uses strict audio-processing and resource scheduling policies.\nMax upload size per file: 200 MB for non-subscribers, 500 MB for subscribers.\nFiles above the applicable limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
         },
         {
           q: "Minimum audio duration",
@@ -457,13 +457,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "Subscriber vs non-subscriber",
-          a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different limits:\n\nNon-subscribers\n- Up to 10 vocal removal / dereverb jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Up to 200 vocal removal / dereverb jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you need higher usage limits or full-quality outputs, consider upgrading to a subscription.",
+          a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different policies:\n\nNon-subscribers\n- Unlimited jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Unlimited jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you want priority processing and WAV downloads, consider upgrading to a subscription.",
         },
       ],
       bpm: [
         {
           q: "Upload failed",
-          a: "The server uses strict audio-processing and resource scheduling policies.\nFor non-subscribers, the maximum upload size per file is 50 MB. Files above this limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
+          a: "The server uses strict audio-processing and resource scheduling policies.\nMax upload size per file: 200 MB for non-subscribers, 500 MB for subscribers.\nFiles above the applicable limit will fail.\nIf the issue persists within the limits, please contact us for further investigation.",
         },
         {
           q: "Minimum audio duration",
@@ -471,7 +471,7 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "Subscriber vs non-subscriber",
-          a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different limits:\n\nNon-subscribers\n- Up to 10 vocal removal / dereverb jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Up to 200 vocal removal / dereverb jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you need higher usage limits or full-quality outputs, consider upgrading to a subscription.",
+          a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different policies:\n\nNon-subscribers\n- Unlimited jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Unlimited jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you want priority processing and WAV downloads, consider upgrading to a subscription.",
         },
       ],
     },
@@ -479,9 +479,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       title: "Subscription",
       subtitle: "Upgrade for higher limits, faster processing, and full-quality outputs.",
       nonSubscriberTitle: "Free plan (non-subscriber)",
-      nonSubscriberBenefits: ["Queued processing", "Up to 10 jobs per day", "MP3 supported"],
+      nonSubscriberBenefits: ["Queued processing", "Max upload: 200MB", "Unlimited jobs per day", "MP3 supported"],
       subscriberTitle: "Subscriber benefits",
-      subscriberBenefits: ["Up to 200 jobs per day", "Priority processing (no queue)", "Original WAV downloads available"],
+      subscriberBenefits: ["Max upload: 500MB", "Unlimited jobs per day", "Priority processing (no queue)", "Original WAV downloads available"],
       subscribe: "Subscribe",
       manage: "Manage subscription",
       active: "Active",
@@ -649,7 +649,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       demix: [
         {
           q: "アップロードに失敗します",
-          a: "現在、サーバーでは厳格な音声処理・リソーススケジューリング方針を適用しています。\n未購読ユーザーの1ファイルあたりの最大アップロードサイズは 50 MB です。制限を超えるとアップロードに失敗します。\n制限内でも問題が続く場合は、詳細調査のためご連絡ください。",
+          a: "現在、サーバーでは厳格な音声処理・リソーススケジューリング方針を適用しています。\n1ファイルあたりの最大アップロードサイズは、未購読ユーザーが 200 MB、購読ユーザーが 500 MB です。\n該当する制限を超えるとアップロードに失敗します。\n制限内でも問題が続く場合は、詳細調査のためご連絡ください。",
         },
         {
           q: "最小アップロード時間",
@@ -657,13 +657,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "購読ユーザーと未購読ユーザーの違い",
-          a: "音声処理（ボーカル除去 / リバーブ除去）は計算コストが高いため、ユーザー種別ごとに制限を設けています。\n\n未購読ユーザー\n- 1日最大 10 回まで（ボーカル除去 / リバーブ除去）\n- ジョブはキューに入り待機します\n- 元の WAV 形式のダウンロード不可\n\n購読ユーザー\n- 1日最大 200 回まで（ボーカル除去 / リバーブ除去）\n- 優先処理（待機なし）\n- 処理後の元 WAV のダウンロード可\n\nより高頻度の利用や高品質な出力が必要な場合は、購読へのアップグレードをご検討ください。",
+          a: "音声処理（ボーカル除去 / リバーブ除去）は計算コストが高いため、ユーザー種別ごとにポリシーを適用しています。\n\n未購読ユーザー\n- 1日あたり無制限\n- ジョブはキューに入り待機します\n- 元の WAV 形式のダウンロード不可\n\n購読ユーザー\n- 1日あたり無制限\n- 優先処理（待機なし）\n- 処理後の元 WAV のダウンロード可\n\n優先処理や WAV ダウンロードをご希望の場合は、購読へのアップグレードをご検討ください。",
         },
       ],
       dereverb: [
         {
           q: "アップロードに失敗します",
-          a: "現在、サーバーでは厳格な音声処理・リソーススケジューリング方針を適用しています。\n未購読ユーザーの1ファイルあたりの最大アップロードサイズは 50 MB です。制限を超えるとアップロードに失敗します。\n制限内でも問題が続く場合は、詳細調査のためご連絡ください。",
+          a: "現在、サーバーでは厳格な音声処理・リソーススケジューリング方針を適用しています。\n1ファイルあたりの最大アップロードサイズは、未購読ユーザーが 200 MB、購読ユーザーが 500 MB です。\n該当する制限を超えるとアップロードに失敗します。\n制限内でも問題が続く場合は、詳細調査のためご連絡ください。",
         },
         {
           q: "最小アップロード時間",
@@ -675,13 +675,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "購読ユーザーと未購読ユーザーの違い",
-          a: "音声処理（ボーカル除去 / リバーブ除去）は計算コストが高いため、ユーザー種別ごとに制限を設けています。\n\n未購読ユーザー\n- 1日最大 10 回まで（ボーカル除去 / リバーブ除去）\n- ジョブはキューに入り待機します\n- 元の WAV 形式のダウンロード不可\n\n購読ユーザー\n- 1日最大 200 回まで（ボーカル除去 / リバーブ除去）\n- 優先処理（待機なし）\n- 処理後の元 WAV のダウンロード可\n\nより高頻度の利用や高品質な出力が必要な場合は、購読へのアップグレードをご検討ください。",
+          a: "音声処理（ボーカル除去 / リバーブ除去）は計算コストが高いため、ユーザー種別ごとにポリシーを適用しています。\n\n未購読ユーザー\n- 1日あたり無制限\n- ジョブはキューに入り待機します\n- 元の WAV 形式のダウンロード不可\n\n購読ユーザー\n- 1日あたり無制限\n- 優先処理（待機なし）\n- 処理後の元 WAV のダウンロード可\n\n優先処理や WAV ダウンロードをご希望の場合は、購読へのアップグレードをご検討ください。",
         },
       ],
       bpm: [
         {
           q: "アップロードに失敗します",
-          a: "現在、サーバーでは厳格な音声処理・リソーススケジューリング方針を適用しています。\n未購読ユーザーの1ファイルあたりの最大アップロードサイズは 50 MB です。制限を超えるとアップロードに失敗します。\n制限内でも問題が続く場合は、詳細調査のためご連絡ください。",
+          a: "現在、サーバーでは厳格な音声処理・リソーススケジューリング方針を適用しています。\n1ファイルあたりの最大アップロードサイズは、未購読ユーザーが 200 MB、購読ユーザーが 500 MB です。\n該当する制限を超えるとアップロードに失敗します。\n制限内でも問題が続く場合は、詳細調査のためご連絡ください。",
         },
         {
           q: "最小アップロード時間",
@@ -689,7 +689,7 @@ const dictionaries: Record<Locale, Dictionary> = {
         },
         {
           q: "購読ユーザーと未購読ユーザーの違い",
-          a: "音声処理（ボーカル除去 / リバーブ除去）は計算コストが高いため、ユーザー種別ごとに制限を設けています。\n\n未購読ユーザー\n- 1日最大 10 回まで（ボーカル除去 / リバーブ除去）\n- ジョブはキューに入り待機します\n- 元の WAV 形式のダウンロード不可\n\n購読ユーザー\n- 1日最大 200 回まで（ボーカル除去 / リバーブ除去）\n- 優先処理（待機なし）\n- 処理後の元 WAV のダウンロード可\n\nより高頻度の利用や高品質な出力が必要な場合は、購読へのアップグレードをご検討ください。",
+          a: "音声処理（ボーカル除去 / リバーブ除去）は計算コストが高いため、ユーザー種別ごとにポリシーを適用しています。\n\n未購読ユーザー\n- 1日あたり無制限\n- ジョブはキューに入り待機します\n- 元の WAV 形式のダウンロード不可\n\n購読ユーザー\n- 1日あたり無制限\n- 優先処理（待機なし）\n- 処理後の元 WAV のダウンロード可\n\n優先処理や WAV ダウンロードをご希望の場合は、購読へのアップグレードをご検討ください。",
         },
       ],
     },
@@ -697,9 +697,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       title: "サブスクリプション",
       subtitle: "上限回数・処理速度・高品質出力を強化するためにアップグレードできます。",
       nonSubscriberTitle: "未購読ユーザーの権利",
-      nonSubscriberBenefits: ["キュー待ちが発生", "1日最大 10 回", "MP3 に対応"],
+      nonSubscriberBenefits: ["キュー待ちが発生", "最大アップロード: 200MB", "1日あたり無制限", "MP3 に対応"],
       subscriberTitle: "購読特典",
-      subscriberBenefits: ["1日最大 200 回", "優先処理（待機なし）", "元の WAV ダウンロード対応"],
+      subscriberBenefits: ["最大アップロード: 500MB", "1日あたり無制限", "優先処理（待機なし）", "元の WAV ダウンロード対応"],
       subscribe: "購読する",
       manage: "購読を管理",
       active: "有効",

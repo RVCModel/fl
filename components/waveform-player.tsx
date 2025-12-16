@@ -42,7 +42,21 @@ export default function WaveformPlayer({
       cursorColor: "#fff",
       normalize: true,
     });
-    wavesurferRef.current.load(url);
+    const isAbortError = (err: unknown) => {
+      if (err instanceof DOMException && err.name === "AbortError") return true;
+      if (err && typeof err === "object" && "name" in err && (err as any).name === "AbortError") return true;
+      return false;
+    };
+    try {
+      const ret = (wavesurferRef.current as any).load(url);
+      if (ret && typeof ret.then === "function") {
+        ret.catch((err: unknown) => {
+          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+        });
+      }
+    } catch (err) {
+      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+    }
     wavesurferRef.current.on("ready", () => {
       const dur = wavesurferRef.current?.getDuration() || 0;
       setDuration(formatTime(dur));
@@ -54,7 +68,10 @@ export default function WaveformPlayer({
       const dur = wavesurferRef.current?.getDuration() || 0;
       setCurrent(formatTime(progress * dur));
     });
-    return () => wavesurferRef.current?.destroy();
+    return () => {
+      wavesurferRef.current?.destroy();
+      wavesurferRef.current = null;
+    };
   }, [url, waveColor, progressColor, height]);
 
   const togglePlay = () => {
