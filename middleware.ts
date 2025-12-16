@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { defaultLocale, locales } from "./i18n/config";
+import { defaultLocale, locales, type Locale } from "./i18n/config";
 
 const LOCALE_COOKIE = "demixr_locale";
 
-function detectLocaleFromAcceptLanguage(header: string | null) {
-  if (!header) return defaultLocale;
+function isLocale(value: string | null | undefined): value is Locale {
+  return !!value && locales.includes(value as Locale);
+}
+
+function detectLocaleFromAcceptLanguage(header: string | null): Locale | null {
+  if (!header) return null;
 
   const items = header
     .split(",")
@@ -23,7 +27,36 @@ function detectLocaleFromAcceptLanguage(header: string | null) {
     if (lang.startsWith("ja")) return "ja";
     if (lang.startsWith("en")) return "en";
   }
-  return defaultLocale;
+  return null;
+}
+
+function detectLocaleFromUserAgent(userAgent: string | null): Locale | null {
+  const ua = String(userAgent || "").toLowerCase();
+  if (!ua) return null;
+
+  // China-focused crawlers
+  if (
+    ua.includes("baiduspider") ||
+    ua.includes("sogou") ||
+    ua.includes("360spider") ||
+    ua.includes("bytespider") ||
+    ua.includes("yisouspider")
+  ) {
+    return "zh";
+  }
+
+  // Global crawlers (prefer English)
+  if (
+    ua.includes("googlebot") ||
+    ua.includes("bingbot") ||
+    ua.includes("duckduckbot") ||
+    ua.includes("yandexbot") ||
+    ua.includes("slurp")
+  ) {
+    return "en";
+  }
+
+  return null;
 }
 
 export function middleware(request: NextRequest) {
@@ -42,11 +75,13 @@ export function middleware(request: NextRequest) {
   const segments = pathname.split("/").filter(Boolean);
   const localeFromPath = segments[0];
 
-  if (locales.includes(localeFromPath as (typeof locales)[number])) {
+  if (isLocale(localeFromPath)) {
     const current = String(localeFromPath);
     const existing = request.cookies.get(LOCALE_COOKIE)?.value;
-    if (existing === current) return NextResponse.next();
-    const res = NextResponse.next();
+    const headers = new Headers(request.headers);
+    headers.set("x-demixr-locale", current);
+    const res = NextResponse.next({ request: { headers } });
+    if (existing === current) return res;
     res.cookies.set(LOCALE_COOKIE, current, {
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
@@ -56,10 +91,11 @@ export function middleware(request: NextRequest) {
   }
 
   const remembered = request.cookies.get(LOCALE_COOKIE)?.value;
-  const locale =
-    remembered && locales.includes(remembered as (typeof locales)[number])
-      ? (remembered as (typeof locales)[number])
-      : detectLocaleFromAcceptLanguage(request.headers.get("accept-language"));
+  const locale = isLocale(remembered)
+    ? remembered
+    : detectLocaleFromAcceptLanguage(request.headers.get("accept-language")) ||
+      detectLocaleFromUserAgent(request.headers.get("user-agent")) ||
+      defaultLocale;
 
   const url = request.nextUrl.clone();
   url.pathname = pathname === "/" ? `/${locale}` : `/${locale}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
