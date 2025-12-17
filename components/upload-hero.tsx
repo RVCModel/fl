@@ -10,10 +10,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Dictionary } from "@/i18n/dictionaries";
 import { Faq } from "@/components/faq";
-import { Play, SkipBack } from "lucide-react";
+import { Play, SkipBack, Loader2 } from "lucide-react"; // 新增 Loader2
 import { getValidAccessToken } from "@/lib/auth-client";
+import { pickLocale } from "@/i18n/locale-utils";
 
 // --- 类型定义 ---
+
 type Phase = "idle" | "uploading" | "processing" | "done" | "error";
 type TrackKey = "inst" | "vocal";
 
@@ -27,6 +29,7 @@ const TRACK_COLORS: Record<TrackKey, { bg: string; wave: string }> = {
 };
 
 // --- 辅助函数 ---
+
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -39,6 +42,7 @@ function formatTime(time: number) {
 }
 
 // --- MixerSlider 组件 ---
+
 function MixerSlider({
   value,
   onLiveChange,
@@ -56,9 +60,10 @@ function MixerSlider({
   const W = 40;
   const H = 20;
   const PAD_BOTTOM = 4;
-  const H_LEFT = 3; 
+  const H_LEFT = 3;
   const H_RIGHT = 12;
-  const Y_BOTTOM = H - PAD_BOTTOM; 
+
+  const Y_BOTTOM = H - PAD_BOTTOM;
   const Y_TOP_LEFT = Y_BOTTOM - H_LEFT;
   const Y_TOP_RIGHT = Y_BOTTOM - H_RIGHT;
 
@@ -67,15 +72,15 @@ function MixerSlider({
     const yTopAtX = Y_TOP_LEFT + (Y_TOP_RIGHT - Y_TOP_LEFT) * (v / 100);
 
     activePathRef.current?.setAttribute(
-      "points", 
+      "points",
       `0,${Y_BOTTOM} ${x},${Y_BOTTOM} ${x},${yTopAtX} 0,${Y_TOP_LEFT}`
     );
 
     const thumbH = 14;
     const thumbW = 5;
     const thumbY = (H - thumbH) / 2;
-    const thumbX = clamp(x - thumbW / 2, 0, W - thumbW); 
-    
+    const thumbX = clamp(x - thumbW / 2, 0, W - thumbW);
+
     thumbRef.current?.setAttribute("x", String(thumbX));
     thumbRef.current?.setAttribute("y", String(thumbY));
   };
@@ -91,7 +96,7 @@ function MixerSlider({
     const rect = el.getBoundingClientRect();
     const x = clamp(clientX - rect.left, 0, rect.width);
     const v = clamp((x / rect.width) * 100, 0, 100);
-    
+
     valueRef.current = v;
     updateVisuals(v);
     onLiveChange(v);
@@ -118,22 +123,22 @@ function MixerSlider({
       }}
     >
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full overflow-visible">
-        <polygon 
-          points={`0,${Y_BOTTOM} ${W},${Y_BOTTOM} ${W},${Y_TOP_RIGHT} 0,${Y_TOP_LEFT}`} 
-          fill="#333333" 
+        <polygon
+          points={`0,${Y_BOTTOM} ${W},${Y_BOTTOM} ${W},${Y_TOP_RIGHT} 0,${Y_TOP_LEFT}`}
+          fill="#333333"
         />
-        <polygon 
-          ref={activePathRef} 
-          points={`0,${Y_BOTTOM} 0,${Y_BOTTOM} 0,${Y_TOP_LEFT} 0,${Y_TOP_LEFT}`} 
-          fill="#a1a1aa" 
+        <polygon
+          ref={activePathRef}
+          points={`0,${Y_BOTTOM} 0,${Y_BOTTOM} 0,${Y_TOP_LEFT} 0,${Y_TOP_LEFT}`}
+          fill="#a1a1aa"
         />
-        <rect 
-          ref={thumbRef} 
-          width="5" 
-          height="14" 
-          fill="#ffffff" 
+        <rect
+          ref={thumbRef}
+          width="5"
+          height="14"
+          fill="#ffffff"
           rx="1.5"
-          className="shadow-sm" 
+          className="shadow-sm"
         />
       </svg>
     </div>
@@ -141,6 +146,7 @@ function MixerSlider({
 }
 
 // --- UploadHero 主组件 ---
+
 export default function UploadHero({
   dictionary,
   locale,
@@ -148,27 +154,228 @@ export default function UploadHero({
   dictionary: Dictionary;
   locale: string;
 }) {
-  const labels = {
-    music: locale === "en" ? "Music" : locale === "ja" ? "音楽" : "音乐",
-    vocal: locale === "en" ? "Vocal" : locale === "ja" ? "ボーカル" : "人声",
-    play: locale === "en" ? "Play" : locale === "ja" ? "再生" : "播放",
-    replay: locale === "en" ? "Re-upload" : locale === "ja" ? "再アップロード" : "重新上传",
-    format: locale === "en" ? "Format" : locale === "ja" ? "形式" : "格式",
-    uploadingTitle: locale === "en" ? "Uploading…" : locale === "ja" ? "アップロード中…" : "上传中…",
-    uploadingDesc:
-      locale === "en"
-        ? "Preparing your audio for processing."
-        : locale === "ja"
-          ? "処理の準備をしています。"
-          : "正在准备音频并上传，请稍候。",
-    processingTitle: locale === "en" ? "Audio processing…" : locale === "ja" ? "音声処理中…" : "音频处理中…",
-    processingDesc:
-      locale === "en"
-        ? "AI is separating vocals and instrumental, this may take up to a minute. Please keep this page open."
-        : locale === "ja"
-          ? "AI がボーカルと伴奏を分離しています。1 分ほどかかる場合があります。このページを開いたままにしてください。"
-          : "人工智能正在分离人声与伴奏，可能需要一分钟。请保持页面开启。",
-  };
+  const labels = pickLocale(locale, {
+    zh: {
+      music: "音乐",
+      vocal: "人声",
+      play: "播放",
+      pause: "暂停",
+      replay: "重新上传",
+      format: "格式",
+      uploadingTitle: "上传中…",
+      uploadingDesc: "正在准备音频并上传，请稍候。",
+      processingTitle: "音频处理中…",
+      processingDesc: "人工智能正在分离人声与伴奏，可能需要一分钟。请保持页面开启。",
+      queueAheadTpl: "前方排队人数：{position}。",
+      queueEtaTpl: "预计等待：{seconds} 秒。",
+      downloadInst: "下载伴奏",
+      downloadVocal: "下载人声",
+      howItWorksTag: "工作方式",
+      howItWorksTitle: "移除人声并隔离",
+      howItWorksSubtitle: "用强大的人工智能算法将声音从音乐中分离出来",
+      howItWorksImageAlt: "音频分离播放器界面 - 显示音乐和人声波形",
+    },
+    en: {
+      music: "Music",
+      vocal: "Vocal",
+      play: "Play",
+      pause: "Pause",
+      replay: "Re-upload",
+      format: "Format",
+      uploadingTitle: "Uploading…",
+      uploadingDesc: "Preparing your audio for processing.",
+      processingTitle: "Audio processing…",
+      processingDesc: "AI is separating vocals and instrumental, this may take up to a minute. Please keep this page open.",
+      queueAheadTpl: "Ahead in queue: {position}.",
+      queueEtaTpl: "Est. wait: {seconds}s.",
+      downloadInst: "Download Inst",
+      downloadVocal: "Download Vocal",
+      howItWorksTag: "How it works",
+      howItWorksTitle: "Remove vocals and isolate",
+      howItWorksSubtitle: "Separate vocals from music with powerful AI.",
+      howItWorksImageAlt: "Audio splitter interface showing music and vocal waveforms",
+    },
+    ja: {
+      music: "音楽",
+      vocal: "ボーカル",
+      play: "再生",
+      pause: "一時停止",
+      replay: "再アップロード",
+      format: "形式",
+      uploadingTitle: "アップロード中…",
+      uploadingDesc: "処理の準備をしています。",
+      processingTitle: "音声処理中…",
+      processingDesc: "AI がボーカルと伴奏を分離しています。1 分ほどかかる場合があります。このページを開いたままにしてください。",
+      queueAheadTpl: "前方待ち人数: {position}。",
+      queueEtaTpl: "予想到着: {seconds} 秒。",
+      downloadInst: "伴奏をダウンロード",
+      downloadVocal: "人声をダウンロード",
+      howItWorksTag: "動作モード",
+      howItWorksTitle: "ボーカルを分離して抽出",
+      howItWorksSubtitle: "強力なAIで音楽から声を分離します。",
+      howItWorksImageAlt: "音楽とボーカルの波形を表示する分離プレーヤー",
+    },
+    ko: {
+      music: "음악",
+      vocal: "보컬",
+      play: "재생",
+      pause: "일시정지",
+      replay: "다시 업로드",
+      format: "형식",
+      uploadingTitle: "업로드 중…",
+      uploadingDesc: "오디오를 준비하고 업로드하는 중입니다.",
+      processingTitle: "오디오 처리 중…",
+      processingDesc: "AI가 보컬과 반주를 분리하고 있습니다. 최대 1분 정도 걸릴 수 있어요. 이 페이지를 열어 두세요.",
+      queueAheadTpl: "앞에 대기: {position}명.",
+      queueEtaTpl: "예상 대기: {seconds}초.",
+      downloadInst: "반주 다운로드",
+      downloadVocal: "보컬 다운로드",
+      howItWorksTag: "작동 방식",
+      howItWorksTitle: "보컬을 분리하고 추출",
+      howItWorksSubtitle: "강력한 AI로 음악에서 보컬을 분리합니다.",
+      howItWorksImageAlt: "음악과 보컬 파형을 보여주는 오디오 분리 인터페이스",
+    },
+    ru: {
+      music: "Музыка",
+      vocal: "Вокал",
+      play: "Воспроизвести",
+      pause: "Пауза",
+      replay: "Загрузить заново",
+      format: "Формат",
+      uploadingTitle: "Загрузка…",
+      uploadingDesc: "Подготавливаем и загружаем аудио.",
+      processingTitle: "Обработка аудио…",
+      processingDesc: "ИИ разделяет вокал и инструментал. Это может занять до минуты. Не закрывайте страницу.",
+      queueAheadTpl: "Перед вами в очереди: {position}.",
+      queueEtaTpl: "Ожидание: ~{seconds}с.",
+      downloadInst: "Скачать инструментал",
+      downloadVocal: "Скачать вокал",
+      howItWorksTag: "Как это работает",
+      howItWorksTitle: "Отделите вокал и инструментал",
+      howItWorksSubtitle: "Разделяйте вокал и музыку с помощью мощного ИИ.",
+      howItWorksImageAlt: "Интерфейс разделения аудио с волнами музыки и вокала",
+    },
+    de: {
+      music: "Musik",
+      vocal: "Vocals",
+      play: "Abspielen",
+      pause: "Pause",
+      replay: "Neu hochladen",
+      format: "Format",
+      uploadingTitle: "Wird hochgeladen…",
+      uploadingDesc: "Audio wird vorbereitet und hochgeladen.",
+      processingTitle: "Audio wird verarbeitet…",
+      processingDesc: "KI trennt Vocals und Instrumental. Das kann bis zu einer Minute dauern. Bitte Seite geöffnet lassen.",
+      queueAheadTpl: "Vor dir in der Warteschlange: {position}.",
+      queueEtaTpl: "Geschätzte Wartezeit: {seconds}s.",
+      downloadInst: "Instrumental herunterladen",
+      downloadVocal: "Vocals herunterladen",
+      howItWorksTag: "So funktioniert’s",
+      howItWorksTitle: "Vocals entfernen und isolieren",
+      howItWorksSubtitle: "Trenne Vocals und Musik mit leistungsstarker KI.",
+      howItWorksImageAlt: "Audio-Splitter-Oberfläche mit Wellenformen für Musik und Vocals",
+    },
+    pt: {
+      music: "Música",
+      vocal: "Vocal",
+      play: "Reproduzir",
+      pause: "Pausar",
+      replay: "Enviar novamente",
+      format: "Formato",
+      uploadingTitle: "Enviando…",
+      uploadingDesc: "Preparando e enviando o áudio.",
+      processingTitle: "Processando áudio…",
+      processingDesc: "A IA está separando vocal e instrumental. Isso pode levar até um minuto. Mantenha esta página aberta.",
+      queueAheadTpl: "À sua frente na fila: {position}.",
+      queueEtaTpl: "Espera estimada: {seconds}s.",
+      downloadInst: "Baixar instrumental",
+      downloadVocal: "Baixar vocal",
+      howItWorksTag: "Como funciona",
+      howItWorksTitle: "Remova o vocal e isole",
+      howItWorksSubtitle: "Separe vocais da música com IA poderosa.",
+      howItWorksImageAlt: "Interface de separação de áudio com formas de onda de música e vocal",
+    },
+    it: {
+      music: "Musica",
+      vocal: "Voce",
+      play: "Riproduci",
+      pause: "Pausa",
+      replay: "Carica di nuovo",
+      format: "Formato",
+      uploadingTitle: "Caricamento…",
+      uploadingDesc: "Preparazione e caricamento dell’audio.",
+      processingTitle: "Elaborazione audio…",
+      processingDesc: "L’IA sta separando voce e base. Potrebbe richiedere fino a un minuto. Tieni aperta questa pagina.",
+      queueAheadTpl: "Davanti in coda: {position}.",
+      queueEtaTpl: "Attesa stimata: {seconds}s.",
+      downloadInst: "Scarica base",
+      downloadVocal: "Scarica voce",
+      howItWorksTag: "Come funziona",
+      howItWorksTitle: "Rimuovi la voce e isola",
+      howItWorksSubtitle: "Separa la voce dalla musica con una potente IA.",
+      howItWorksImageAlt: "Interfaccia di separazione audio con forme d’onda di musica e voce",
+    },
+    ar: {
+      music: "موسيقى",
+      vocal: "غناء",
+      play: "تشغيل",
+      pause: "إيقاف مؤقت",
+      replay: "إعادة الرفع",
+      format: "التنسيق",
+      uploadingTitle: "جارٍ الرفع…",
+      uploadingDesc: "جارٍ تجهيز الصوت ورفعه للمعالجة.",
+      processingTitle: "جارٍ معالجة الصوت…",
+      processingDesc: "يقوم الذكاء الاصطناعي بفصل الغناء عن الموسيقى. قد يستغرق ذلك حتى دقيقة. يُرجى إبقاء هذه الصفحة مفتوحة.",
+      queueAheadTpl: "عدد المنتظرين قبلك: {position}.",
+      queueEtaTpl: "الانتظار المتوقع: {seconds}ث.",
+      downloadInst: "تنزيل الموسيقى",
+      downloadVocal: "تنزيل الغناء",
+      howItWorksTag: "كيف يعمل",
+      howItWorksTitle: "اعزل الغناء وافصله",
+      howItWorksSubtitle: "افصل الغناء عن الموسيقى باستخدام ذكاء اصطناعي قوي.",
+      howItWorksImageAlt: "واجهة فصل الصوت تعرض موجات الموسيقى والغناء",
+    },
+    es: {
+      music: "Música",
+      vocal: "Voz",
+      play: "Reproducir",
+      pause: "Pausar",
+      replay: "Volver a subir",
+      format: "Formato",
+      uploadingTitle: "Subiendo…",
+      uploadingDesc: "Preparando y subiendo el audio para procesarlo.",
+      processingTitle: "Procesando audio…",
+      processingDesc: "La IA está separando voz e instrumental. Puede tardar hasta un minuto. Mantén esta página abierta.",
+      queueAheadTpl: "Delante en la cola: {position}.",
+      queueEtaTpl: "Espera estimada: {seconds}s.",
+      downloadInst: "Descargar instrumental",
+      downloadVocal: "Descargar voz",
+      howItWorksTag: "Cómo funciona",
+      howItWorksTitle: "Elimina la voz y aísla",
+      howItWorksSubtitle: "Separa la voz de la música con IA potente.",
+      howItWorksImageAlt: "Interfaz de separación de audio con formas de onda de música y voz",
+    },
+    fr: {
+      music: "Musique",
+      vocal: "Voix",
+      play: "Lire",
+      pause: "Pause",
+      replay: "Renvoyer",
+      format: "Format",
+      uploadingTitle: "Envoi…",
+      uploadingDesc: "Préparation et envoi de l’audio.",
+      processingTitle: "Traitement audio…",
+      processingDesc: "L’IA sépare la voix et l’instrumental. Cela peut prendre jusqu’à une minute. Gardez cette page ouverte.",
+      queueAheadTpl: "Devant vous dans la file : {position}.",
+      queueEtaTpl: "Attente estimée : {seconds}s.",
+      downloadInst: "Télécharger l’instru",
+      downloadVocal: "Télécharger la voix",
+      howItWorksTag: "Comment ça marche",
+      howItWorksTitle: "Retirez la voix et isolez",
+      howItWorksSubtitle: "Séparez la voix de la musique avec une IA puissante.",
+      howItWorksImageAlt: "Interface de séparation audio montrant les formes d’onde musique et voix",
+    },
+  });
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -177,29 +384,40 @@ export default function UploadHero({
   const [taskId, setTaskId] = useState<string | null>(null);
   const [position, setPosition] = useState<number>(0);
   const [etaSeconds, setEtaSeconds] = useState<number>(0);
+
   const [vocalsUrl, setVocalsUrl] = useState<string | null>(null);
   const [instUrl, setInstUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [musicVolume, setMusicVolume] = useState(80);
   const [voiceVolume, setVoiceVolume] = useState(80);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+
   const [hasWave, setHasWave] = useState(false);
   const [hasInstWave, setHasInstWave] = useState(false);
+
   const [historyRecorded, setHistoryRecorded] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState<boolean | null>(null);
   const [downloadFormat, setDownloadFormat] = useState<"mp3" | "wav">("mp3");
   const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
+
+  // 新增：下载状态追踪
+  const [downloadingItems, setDownloadingItems] = useState<Record<string, boolean>>({});
+
   const notFoundStreakRef = useRef(0);
   const STORAGE_KEY = "vofl:demix-state";
 
   const instAudioRef = useRef<HTMLAudioElement | null>(null);
   const vocalAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const vocalWaveContainerRef = useRef<HTMLDivElement | null>(null);
   const waveSurferRef = useRef<WaveSurfer | null>(null);
+
   const instWaveContainerRef = useRef<HTMLDivElement | null>(null);
   const instWaveSurferRef = useRef<WaveSurfer | null>(null);
+
   const rafRef = useRef<number | null>(null); // For animation loop
 
   const rawApiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
@@ -263,6 +481,39 @@ export default function UploadHero({
     return false;
   };
 
+  const uploadNetworkError = (fileSizeBytes: number) => {
+    const base = pickLocale(locale, {
+      zh: "网络请求失败，请检查后端服务是否可访问。",
+      en: "Network request failed. Please check that the backend is reachable.",
+      ja: "ネットワークリクエストに失敗しました。バックエンドに接続できるか確認してください。",
+      ko: "네트워크 요청에 실패했습니다. 백엔드에 연결 가능한지 확인해 주세요.",
+      ru: "Сетевой запрос не выполнен. Проверьте доступность бэкенда.",
+      de: "Netzwerkfehler. Bitte prüfe, ob das Backend erreichbar ist.",
+      pt: "Falha na requisição de rede. Verifique se o backend está acessível.",
+      it: "Richiesta di rete non riuscita. Verifica che il backend sia raggiungibile.",
+      ar: "فشل طلب الشبكة. يرجى التأكد من إمكانية الوصول إلى الخادم الخلفي.",
+      es: "Falló la solicitud de red. Comprueba que el backend sea accesible.",
+      fr: "Échec de la requête réseau. Vérifiez que le backend est accessible.",
+    });
+
+    if (fileSizeBytes < 100 * 1024 * 1024) return base;
+
+    const large = pickLocale(locale, {
+      zh: "上传失败：连接被中断（可能是反向代理/平台限制了上传大小，例如 100MB）。请尝试更小的文件，或提高服务器的请求体大小限制。",
+      en: "Upload failed: connection was interrupted (a proxy/platform may limit upload size, e.g. 100MB). Try a smaller file or increase the server request body limit.",
+      ja: "アップロード失敗：接続が中断されました（プロキシ/プラットフォームが 100MB などの上限を設けている可能性があります）。小さいファイルで試すか、サーバー側の上限を引き上げてください。",
+      ko: "업로드 실패: 연결이 중단되었습니다(프록시/플랫폼이 100MB 등 업로드 크기를 제한할 수 있습니다). 더 작은 파일로 시도하거나 서버 제한을 늘려 주세요.",
+      ru: "Загрузка не удалась: соединение было прервано (прокси/платформа может ограничивать размер, например 100 МБ). Попробуйте файл меньше или увеличьте лимит на сервере.",
+      de: "Upload fehlgeschlagen: Verbindung wurde unterbrochen (Proxy/Plattform kann z. B. auf 100MB begrenzen). Versuche eine kleinere Datei oder erhöhe das Server-Limit.",
+      pt: "Falha no upload: a conexão foi interrompida (um proxy/plataforma pode limitar, ex.: 100MB). Tente um arquivo menor ou aumente o limite do servidor.",
+      it: "Upload non riuscito: la connessione è stata interrotta (un proxy/piattaforma può limitare, es. 100MB). Prova un file più piccolo o aumenta il limite del server.",
+      ar: "فشل الرفع: انقطع الاتصال (قد يفرض وسيط/منصة حدًا مثل 100MB). جرّب ملفًا أصغر أو ارفع حد حجم الطلب على الخادم.",
+      es: "La subida falló: la conexión se interrumpió (un proxy/plataforma puede limitar, p. ej. 100MB). Prueba con un archivo más pequeño o aumenta el límite del servidor.",
+      fr: "Échec de l’envoi : la connexion a été interrompue (un proxy/plateforme peut limiter, ex. 100 Mo). Essayez un fichier plus petit ou augmentez la limite côté serveur.",
+    });
+    return large;
+  };
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -291,7 +542,6 @@ export default function UploadHero({
     };
   }, []);
 
-  // ... (State restoration logic kept same) ...
   useEffect(() => {
     if (typeof window === "undefined") return;
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -349,7 +599,6 @@ export default function UploadHero({
     if (phase !== "processing") setEtaSeconds(0);
   }, [phase]);
 
-  // ... (Polling logic kept same) ...
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (phase === "processing" && taskId) {
@@ -362,6 +611,7 @@ export default function UploadHero({
             if (timer) clearInterval(timer);
             return;
           }
+
           const token = await getValidAccessToken();
           if (!token) {
             setPhase("error");
@@ -369,9 +619,11 @@ export default function UploadHero({
             clearInterval(timer!);
             return;
           }
+
           const res = await fetch(`${apiBase}/tasks/${taskId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
+
           if (res.status === 404) {
             notFoundStreakRef.current += 1;
             if (notFoundStreakRef.current < 3) return;
@@ -386,10 +638,12 @@ export default function UploadHero({
             if (timer) clearInterval(timer);
             return;
           }
+
           notFoundStreakRef.current = 0;
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           setEtaSeconds(typeof data.eta_seconds === "number" ? data.eta_seconds : 0);
+
           if (data.status === "completed") {
             setVocalsUrl(normalizeBackendUrl(data.vocals_url || data.vocalsUrl));
             setInstUrl(normalizeBackendUrl(data.instrumental_url || data.instrumentalUrl));
@@ -398,6 +652,7 @@ export default function UploadHero({
             setEtaSeconds(0);
             if (timer) clearInterval(timer);
             setHistoryRecorded(false);
+
             try {
               await fetch("/api/jobs", {
                 method: "POST",
@@ -422,6 +677,7 @@ export default function UploadHero({
             setMessage(data.error || "处理失败");
             setEtaSeconds(0);
             if (timer) clearInterval(timer);
+
             try {
               await fetch("/api/jobs", {
                 method: "POST",
@@ -461,6 +717,7 @@ export default function UploadHero({
   // 1. Vocal Track
   useEffect(() => {
     if (phase !== "done" || !vocalWaveContainerRef.current || !vocalAudioRef.current || !vocalsUrl) return;
+
     if (waveSurferRef.current) {
       waveSurferRef.current.destroy();
       waveSurferRef.current = null;
@@ -475,11 +732,9 @@ export default function UploadHero({
       progressColor: "rgba(255,255,255,0.4)",
       cursorColor: "#ffffff",
       cursorWidth: 0,
-      
       barWidth: undefined,
       barGap: undefined,
       barRadius: undefined,
-      
       normalize: true,
       interact: false,
       dragToSeek: false,
@@ -497,6 +752,7 @@ export default function UploadHero({
     } catch (err) {
       if (!isAbortError(err)) console.error("wavesurfer load failed", err);
     }
+
     ws.setVolume(voiceVolume / 100);
     if (vocalAudioRef.current) vocalAudioRef.current.volume = voiceVolume / 100;
 
@@ -505,10 +761,7 @@ export default function UploadHero({
       setHasWave(true);
     });
     ws.on("finish", () => setIsPlaying(false));
-    
-    // **移除 audioprocess 事件中的 setCurrentTime**
-    // 之前这里高频调用 setCurrentTime 导致 React 重渲染卡顿
-    
+
     waveSurferRef.current = ws;
     return () => {
       ws.destroy();
@@ -520,6 +773,7 @@ export default function UploadHero({
   // 2. Inst Track
   useEffect(() => {
     if (phase !== "done" || !instWaveContainerRef.current || !instAudioRef.current || !instUrl) return;
+
     if (instWaveSurferRef.current) {
       instWaveSurferRef.current.destroy();
       instWaveSurferRef.current = null;
@@ -534,11 +788,9 @@ export default function UploadHero({
       progressColor: "rgba(255,255,255,0.4)",
       cursorColor: "#ffffff",
       cursorWidth: 0,
-      
       barWidth: undefined,
       barGap: undefined,
       barRadius: undefined,
-      
       normalize: true,
       interact: false,
       dragToSeek: false,
@@ -556,12 +808,13 @@ export default function UploadHero({
     } catch (err) {
       if (!isAbortError(err)) console.error("wavesurfer load failed", err);
     }
+
     ws.setVolume(musicVolume / 100);
     if (instAudioRef.current) instAudioRef.current.volume = musicVolume / 100;
 
     ws.on("ready", () => setHasInstWave(true));
     ws.on("finish", () => setIsPlaying(false));
-    
+
     instWaveSurferRef.current = ws;
     return () => {
       ws.destroy();
@@ -598,13 +851,15 @@ export default function UploadHero({
     const time = clamp(t, 0, duration || 0);
     if (instAudioRef.current) instAudioRef.current.currentTime = time;
     if (vocalAudioRef.current) vocalAudioRef.current.currentTime = time;
-    setCurrentTime(time); // Update UI timestamp once on seek
+    setCurrentTime(time);
   };
 
   const togglePlay = () => {
     const inst = instAudioRef.current;
     const vocal = vocalAudioRef.current;
+
     if (!inst && !vocal) return;
+
     if (isPlaying) {
       inst?.pause();
       vocal?.pause();
@@ -621,16 +876,10 @@ export default function UploadHero({
     seekAll(0);
   };
 
-  // 优化后的播放进度循环：只在 requestAnimationFrame 中更新 UI 的时间戳，或者降低更新频率
   useEffect(() => {
     const loop = () => {
       const vocal = vocalAudioRef.current;
       if (vocal && !vocal.paused) {
-        // 直接读取 currentTime，但不调用 setState 触发全量渲染
-        // 这里如果是为了更新数字时间显示，每秒更新 10-20 次足够了，或者使用 ref 直接操作 DOM 文本节点
-        // 简单方案：仍然 setState，但组件结构要轻量化。
-        // 由于我们在 renderDone 中把布局变得很重，频繁 render 会卡顿。
-        // 解决方案：使用 CSS 动画驱动进度条，或者独立出一个 TimeDisplay 组件使用 React.memo
         setCurrentTime(vocal.currentTime);
       }
       rafRef.current = requestAnimationFrame(loop);
@@ -641,7 +890,6 @@ export default function UploadHero({
     } else if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
     }
-
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
@@ -653,6 +901,7 @@ export default function UploadHero({
       if (phase !== "done" || !vocalsUrl || !instUrl || historyRecorded || !taskId) return;
       const token = await getValidAccessToken();
       if (!token) return;
+
       try {
         const res = await fetch("/api/history", {
           method: "POST",
@@ -682,59 +931,68 @@ export default function UploadHero({
       router.push(`/${locale}/auth/login`);
       return;
     }
+
     setPhase("uploading");
     setMessage("");
+
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    // ... (upload logic kept same) ...
+
     try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch(`${apiBase}/upload`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-        const data = await safeJson(res);
-        if (!res.ok) {
-          if (res.status === 401) {
-            router.push(`/${locale}/auth/login`);
-            return;
-          }
-          throw new Error(getApiErrorMessage(res, data));
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`${apiBase}/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      const data = await safeJson(res);
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push(`/${locale}/auth/login`);
+          return;
         }
-        setTaskId(data.task_id);
-        setPosition(data.position ?? 0);
-        if (typeof data?.priority === "boolean") {
-          setSubscriptionActive(data.priority);
-          setDownloadFormat(data.priority ? "wav" : "mp3");
-        }
-        setProcessingStartedAt(Date.now());
-        setPhase("processing");
-        try {
-          await fetch("/api/jobs", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              external_task_id: data.task_id,
-              source_url: file.name,
-              status: "queued",
-              model: "demix",
-              progress: 0,
-              result_url: null,
-            }),
-          });
-        } catch (err) {
-          if (!isAbortError(err)) console.error("record job failed", err);
-        }
-      } catch (err: any) {
-        if (!isAbortError(err)) {
-          setPhase("error");
-          setMessage(err.message || dictionary.errors.uploadFailed);
-        }
+        throw new Error(getApiErrorMessage(res, data));
       }
+
+      setTaskId(data.task_id);
+      setPosition(data.position ?? 0);
+      if (typeof data?.priority === "boolean") {
+        setSubscriptionActive(data.priority);
+        setDownloadFormat(data.priority ? "wav" : "mp3");
+      }
+      setProcessingStartedAt(Date.now());
+      setPhase("processing");
+
+      try {
+        await fetch("/api/jobs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            external_task_id: data.task_id,
+            source_url: file.name,
+            status: "queued",
+            model: "demix",
+            progress: 0,
+            result_url: null,
+          }),
+        });
+      } catch (err) {
+        if (!isAbortError(err)) console.error("record job failed", err);
+      }
+    } catch (err: any) {
+      if (!isAbortError(err)) {
+        setPhase("error");
+        const isFetchFailed =
+          err instanceof TypeError && typeof err.message === "string" && /failed to fetch/i.test(err.message);
+        setMessage(isFetchFailed ? uploadNetworkError(file.size) : err.message || dictionary.errors.uploadFailed);
+      }
+    }
   };
 
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -742,8 +1000,13 @@ export default function UploadHero({
     if (file) handleUpload(file);
   };
 
+  // 修改后的 handleDownload：增加加载状态
   const handleDownload = async (url: string | null, name: string) => {
     if (!url || !taskId) return;
+    
+    // 标记该文件正在下载
+    setDownloadingItems((prev) => ({ ...prev, [name]: true }));
+
     try {
       const token = await getValidAccessToken();
       if (!token) {
@@ -752,15 +1015,18 @@ export default function UploadHero({
       }
       const isSubscribed = subscriptionActive === true;
       const fmt: "mp3" | "wav" = isSubscribed ? downloadFormat : "mp3";
+
       if (!isSubscribed && fmt === "wav") {
         setMessage(dictionary.errors.wavDownloadRequiresSubscription);
         router.push(`/${locale}/billing`);
         return;
       }
+
       const stem = name.includes("instrumental") ? "instrumental" : "vocals";
       const res = await fetch(`${apiBase}/download/${taskId}/${stem}?format=${fmt}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       if (!res.ok) {
         const data = await safeJson(res);
         const detail = data?.detail ?? data ?? {};
@@ -771,6 +1037,7 @@ export default function UploadHero({
         }
         throw new Error(dictionary.errors.uploadFailed);
       }
+
       const blob = await res.blob();
       const objectUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -783,14 +1050,14 @@ export default function UploadHero({
       window.URL.revokeObjectURL(objectUrl);
     } catch (err) {
       console.error("download failed", err);
+    } finally {
+      // 无论成功失败，都移除 Loading 状态
+      setDownloadingItems((prev) => ({ ...prev, [name]: false }));
     }
   };
 
   const renderDone = () => {
-    // 进度百分比，用于定位 Playhead
-    // 使用 duration 作为分母，如果 duration 为 0 防止除零
     const playheadPercent = duration ? Math.min(1, currentTime / duration) : 0;
-
     const tracks: {
       key: TrackKey;
       label: string;
@@ -798,27 +1065,31 @@ export default function UploadHero({
       waveContainerRef: React.RefObject<HTMLDivElement | null>;
       waveOpacity: boolean;
     }[] = [
-      { 
-        key: "inst", 
-        label: labels.music, 
-        volume: musicVolume, 
+      {
+        key: "inst",
+        label: labels.music,
+        volume: musicVolume,
         waveContainerRef: instWaveContainerRef,
-        waveOpacity: hasInstWave
+        waveOpacity: hasInstWave,
       },
-      { 
-        key: "vocal", 
-        label: labels.vocal, 
-        volume: voiceVolume, 
+      {
+        key: "vocal",
+        label: labels.vocal,
+        volume: voiceVolume,
         waveContainerRef: vocalWaveContainerRef,
-        waveOpacity: hasWave
-      }
+        waveOpacity: hasWave,
+      },
     ];
 
     return (
       <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#17171e] text-foreground">
-        <audio ref={instAudioRef} src={instUrl || undefined} />
-        <audio ref={vocalAudioRef} src={vocalsUrl || undefined} />
-        
+        {/* 
+            修复关键：移除了 src 属性。
+            WaveSurfer 的 ws.load() 会自动设置 src，避免双重加载竞争。
+        */}
+        <audio ref={instAudioRef} crossOrigin="anonymous" />
+        <audio ref={vocalAudioRef} crossOrigin="anonymous" />
+
         <main className="flex w-full flex-1 flex-col items-center justify-center px-2 pb-44 pt-12 sm:px-4 sm:pb-32 sm:pt-14">
           <div className="w-full max-w-[1600px] overflow-x-auto overflow-y-hidden shadow-2xl shadow-black/50 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:overflow-hidden">
             <div className="flex min-w-[880px] flex-col sm:min-w-0">
@@ -829,9 +1100,9 @@ export default function UploadHero({
                 return (
                   <div key={track.key} className="flex w-full" style={{ height: LANE_HEIGHT }}>
                     {/* Left: Control Panel */}
-                    <div 
+                    <div
                       className="w-32 shrink-0 border-b border-black/20 px-3 sm:w-48 sm:px-4 flex items-center justify-between gap-2"
-                      style={{ backgroundColor: '#18181b', borderRight: '1px solid #333' }}
+                      style={{ backgroundColor: "#18181b", borderRight: "1px solid #333" }}
                     >
                       <span className="min-w-0 truncate text-xs font-medium tracking-wide text-gray-300 sm:text-sm">
                         {track.label}
@@ -844,7 +1115,7 @@ export default function UploadHero({
                     </div>
 
                     {/* Right: Waveform */}
-                    <div 
+                    <div
                       className="relative flex-1 cursor-pointer"
                       style={{ backgroundColor: colors.bg }}
                       onPointerDown={(e) => {
@@ -854,22 +1125,22 @@ export default function UploadHero({
                         seekAll((x / rect.width) * duration);
                       }}
                     >
-                      <div 
-                        ref={track.waveContainerRef} 
-                        className="absolute inset-0" 
-                        style={{ opacity: track.waveOpacity ? 1 : 0 }} 
+                      <div
+                        ref={track.waveContainerRef}
+                        className="absolute inset-0"
+                        style={{ opacity: track.waveOpacity ? 1 : 0 }}
                       />
-                      
+
                       {/* Playhead Line */}
                       <div
                         className="pointer-events-none absolute top-0 bottom-0 w-[1px] bg-white z-10"
                         style={{ left: `${playheadPercent * 100}%` }}
                       />
-                      
+
                       {/* Timestamp (only on last track) */}
                       {isLast && (
                         <div className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-mono text-white/60 z-20">
-                           {formatTime(currentTime)}
+                          {formatTime(currentTime)}
                         </div>
                       )}
                     </div>
@@ -887,7 +1158,7 @@ export default function UploadHero({
               onClick={togglePlay}
             >
               <Play className="h-4 w-4" />
-              {isPlaying ? (locale === "en" ? "Pause" : locale === "ja" ? "一時停止" : "暂停") : labels.play}
+              {isPlaying ? labels.pause : labels.play}
             </button>
             <button
               className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
@@ -896,6 +1167,7 @@ export default function UploadHero({
               <SkipBack className="h-4 w-4" />
             </button>
           </div>
+
           <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-3">
             <div className="flex items-center gap-2 rounded-full border border-border bg-black/10 px-2 py-1 text-sm text-foreground">
               <span className="px-2 text-muted-foreground">{labels.format}</span>
@@ -946,22 +1218,39 @@ export default function UploadHero({
                 </button>
               )}
             </div>
+
             <Button
               className="rounded-full px-3 sm:px-4"
               variant="secondary"
               onClick={() => handleDownload(instUrl, "instrumental.wav")}
-              disabled={!instUrl}
+              disabled={!instUrl || downloadingItems["instrumental.wav"]}
             >
-              {locale === "en" ? "Download Inst" : locale === "ja" ? "伴奏をダウンロード" : "下载伴奏"}
+              {downloadingItems["instrumental.wav"] ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {labels.downloadInst}
+                </>
+              ) : (
+                labels.downloadInst
+              )}
             </Button>
+
             <Button
               className="rounded-full px-3 sm:px-4"
               variant="secondary"
               onClick={() => handleDownload(vocalsUrl, "vocals.wav")}
-              disabled={!vocalsUrl}
+              disabled={!vocalsUrl || downloadingItems["vocals.wav"]}
             >
-              {locale === "en" ? "Download Vocal" : locale === "ja" ? "人声をダウンロード" : "下载人声"}
+              {downloadingItems["vocals.wav"] ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {labels.downloadVocal}
+                </>
+              ) : (
+                labels.downloadVocal
+              )}
             </Button>
+
             <Button className="rounded-full px-4 sm:px-6" variant="outline" onClick={() => setPhase("idle")}>
               {labels.replay}
             </Button>
@@ -971,17 +1260,17 @@ export default function UploadHero({
     );
   };
 
-  // ... (其他 Phase 的渲染保持不变)
   const renderIdle = () => {
-    // ... (保持原样)
     const heroCopy = {
-      tag: locale === "en" ? "How it works" : locale === "ja" ? "動作モード" : "工作方式",
-      title: locale === "en" ? "Remove vocals and isolate" : locale === "ja" ? "ボーカルを分離して抽出" : "移除人声并隔离",
-      subtitle: locale === "en" ? "Separate vocals from music with powerful AI." : locale === "ja" ? "強力なAIで音楽から声を分離します。" : "用强大的人工智能算法将声音从音乐中分离出来",
-      imageAlt: locale === "en" ? "Audio splitter interface showing music and vocal waveforms" : locale === "ja" ? "音楽とボーカルの波形を表示する分離プレーヤー" : "音频分离播放器界面 - 显示音乐和人声波形",
+      tag: labels.howItWorksTag,
+      title: labels.howItWorksTitle,
+      subtitle: labels.howItWorksSubtitle,
+      imageAlt: labels.howItWorksImageAlt,
       button: dictionary.home.uploadCta,
     };
-    const playerImageSrc = locale === "en" ? "/remover/player_en.png" : locale === "ja" ? "/remover/player_ja.png" : "/remover/player_zh.png";
+    const playerImageSrc =
+      locale === "zh" ? "/remover/player_zh.png" : locale === "ja" ? "/remover/player_ja.png" : "/remover/player_en.png";
+
     return (
       <>
         <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#17171e] px-4 py-20 text-white">
@@ -1020,52 +1309,108 @@ export default function UploadHero({
             labels.uploadingDesc
           ) : (
             <>
-              {labels.processingDesc}
-              {position > 0 ? (
-                locale === "en" ? (
-                  <> Ahead in queue: {position}.</>
-                ) : locale === "ja" ? (
-                  <> 前方待ち人数: {position}。</>
-                ) : (
-                  <> 前方排队人数：{position}。</>
-                )
-              ) : null}
-              {etaSeconds > 0 ? (
-                locale === "en" ? (
-                  <> Est. wait: {Math.max(0, Math.round(etaSeconds))}s.</>
-                ) : locale === "ja" ? (
-                  <> 予想到着: {Math.max(0, Math.round(etaSeconds))} 秒。</>
-                ) : (
-                  <> 预计等待：{Math.max(0, Math.round(etaSeconds))} 秒。</>
-                )
-              ) : null}
-              {subscriptionActive !== true ? (
-                <>
-                  {" "}
-                  {locale === "en" ? (
-                    <>
-                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
-                        Subscribe
-                      </Link>{" "}
-                      to skip the queue.
-                    </>
-                  ) : locale === "ja" ? (
-                    <>
-                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
-                        サブスク
-                      </Link>
-                      で待ち時間なし。
-                    </>
-                  ) : (
-                    <>
-                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
-                        订阅
-                      </Link>
-                      会员免除排队。
-                    </>
-                  )}
-                </>
-              ) : null}
+               {labels.processingDesc}
+               {position > 0 ? (
+                <> {formatTemplate(labels.queueAheadTpl, { position })}</>
+               ) : null}
+               {etaSeconds > 0 ? (
+                <> {formatTemplate(labels.queueEtaTpl, { seconds: Math.max(0, Math.round(etaSeconds)) })}</>
+               ) : null}
+               {subscriptionActive !== true ? (
+                 <>
+                   {" "}
+                  {pickLocale(locale, {
+                    zh: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          订阅
+                        </Link>
+                        会员免除排队。
+                      </>
+                    ),
+                    en: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Subscribe
+                        </Link>{" "}
+                        to skip the queue.
+                      </>
+                    ),
+                    ja: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          サブスク
+                        </Link>
+                        で待ち時間なし。
+                      </>
+                    ),
+                    ko: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          구독
+                        </Link>
+                        하면 대기 없이 바로 처리됩니다.
+                      </>
+                    ),
+                    ru: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Подписаться
+                        </Link>
+                        , чтобы пропустить очередь.
+                      </>
+                    ),
+                    de: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Abonnieren
+                        </Link>
+                        , um die Warteschlange zu überspringen.
+                      </>
+                    ),
+                    pt: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Assinar
+                        </Link>{" "}
+                        para pular a fila.
+                      </>
+                    ),
+                    it: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Abbonati
+                        </Link>{" "}
+                        per saltare la coda.
+                      </>
+                    ),
+                    ar: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          اشترك
+                        </Link>{" "}
+                        لتجاوز قائمة الانتظار.
+                      </>
+                    ),
+                    es: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Suscríbete
+                        </Link>{" "}
+                        para saltarte la cola.
+                      </>
+                    ),
+                    fr: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Abonnez-vous
+                        </Link>{" "}
+                        pour éviter la file d’attente.
+                      </>
+                    ),
+                  })}
+                 </>
+               ) : null}
             </>
           )}
         </p>
@@ -1088,5 +1433,6 @@ export default function UploadHero({
       </div>
     );
   }
+
   return renderIdle();
 }

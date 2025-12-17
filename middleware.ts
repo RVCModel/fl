@@ -23,9 +23,9 @@ function detectLocaleFromAcceptLanguage(header: string | null): Locale | null {
     .sort((a, b) => b.q - a.q);
 
   for (const { lang } of items) {
-    if (lang.startsWith("zh")) return "zh";
-    if (lang.startsWith("ja")) return "ja";
-    if (lang.startsWith("en")) return "en";
+    const normalized = lang.replace(/_/g, "-");
+    const primary = normalized.split("-")[0];
+    if (isLocale(primary)) return primary;
   }
   return null;
 }

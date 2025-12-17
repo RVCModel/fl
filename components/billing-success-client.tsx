@@ -25,25 +25,75 @@ export default function BillingSuccessClient({
   const [error, setError] = useState<string | null>(null);
 
   const labels = useMemo(() => {
-    if (locale === "en") {
-      return {
+    const table: Record<string, { status: string; syncing: string; tip: string; refresh: string }> = {
+      zh: {
+        status: "状态",
+        syncing: "正在同步订阅状态…",
+        tip: "如果一直未订阅，请检查 Creem Webhook 是否已配置且可访问（本地需要内网穿透）。",
+        refresh: "刷新",
+      },
+      en: {
+        status: "Status",
         syncing: "Syncing subscription status…",
         tip: "If it stays inactive, make sure the Creem webhook is configured and reachable.",
         refresh: "Refresh",
-      };
-    }
-    if (locale === "ja") {
-      return {
+      },
+      ja: {
+        status: "ステータス",
         syncing: "購読ステータスを同期中…",
         tip: "反映されない場合は、Creem のWebhook設定と到達性（ローカルはトンネル）が必要です。",
         refresh: "更新",
-      };
-    }
-    return {
-      syncing: "正在同步订阅状态…",
-      tip: "如果一直未订阅，请检查 Creem Webhook 是否已配置且可访问（本地需要内网穿透）。",
-      refresh: "刷新",
+      },
+      ko: {
+        status: "상태",
+        syncing: "구독 상태를 동기화하는 중…",
+        tip: "계속 비활성이라면 Creem 웹훅이 설정되어 있고 접근 가능한지 확인하세요.",
+        refresh: "새로고침",
+      },
+      ru: {
+        status: "Статус",
+        syncing: "Синхронизация статуса подписки…",
+        tip: "Если статус не активируется, проверьте, что вебхук Creem настроен и доступен.",
+        refresh: "Обновить",
+      },
+      de: {
+        status: "Status",
+        syncing: "Abo-Status wird synchronisiert…",
+        tip: "Wenn es inaktiv bleibt, prüfen Sie, ob der Creem-Webhook konfiguriert und erreichbar ist.",
+        refresh: "Aktualisieren",
+      },
+      pt: {
+        status: "Estado",
+        syncing: "A sincronizar o estado da assinatura…",
+        tip: "Se continuar inativo, verifique se o webhook da Creem está configurado e acessível.",
+        refresh: "Atualizar",
+      },
+      it: {
+        status: "Stato",
+        syncing: "Sincronizzazione dello stato dell’abbonamento…",
+        tip: "Se rimane inattivo, verifica che il webhook Creem sia configurato e raggiungibile.",
+        refresh: "Aggiorna",
+      },
+      ar: {
+        status: "الحالة",
+        syncing: "جارٍ مزامنة حالة الاشتراك…",
+        tip: "إذا بقي غير نشط، تأكد من إعداد Webhook الخاص بـ Creem وإمكانية الوصول إليه.",
+        refresh: "تحديث",
+      },
+      es: {
+        status: "Estado",
+        syncing: "Sincronizando el estado de la suscripción…",
+        tip: "Si sigue inactiva, revisa que el webhook de Creem esté configurado y accesible.",
+        refresh: "Actualizar",
+      },
+      fr: {
+        status: "Statut",
+        syncing: "Synchronisation du statut d’abonnement…",
+        tip: "Si cela reste inactif, vérifiez que le webhook Creem est configuré et accessible.",
+        refresh: "Actualiser",
+      },
     };
+    return table[locale] ?? table.en;
   }, [locale]);
 
   const load = async () => {
@@ -106,7 +156,7 @@ export default function BillingSuccessClient({
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-left">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-semibold text-slate-200">
-            {locale === "en" ? "Status" : locale === "ja" ? "ステータス" : "状态"}
+            {labels.status}
           </div>
           <span
             className={

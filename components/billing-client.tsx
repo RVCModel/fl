@@ -184,7 +184,27 @@ export default function BillingClient({
                 className="rounded-full border-white/10 bg-transparent text-white hover:bg-white/5"
                 onClick={() => (window.location.href = `/${locale}`)}
               >
-                {locale === "en" ? "Back" : locale === "ja" ? "戻る" : "返回"}
+                {locale === "zh"
+                  ? "返回"
+                  : locale === "ja"
+                    ? "戻る"
+                    : locale === "ko"
+                      ? "뒤로"
+                      : locale === "ru"
+                        ? "Назад"
+                        : locale === "de"
+                          ? "Zurück"
+                          : locale === "pt"
+                            ? "Voltar"
+                            : locale === "it"
+                              ? "Indietro"
+                              : locale === "ar"
+                                ? "رجوع"
+                                : locale === "es"
+                                  ? "Volver"
+                                  : locale === "fr"
+                                    ? "Retour"
+                                    : "Back"}
               </Button>
             </div>
           </div>

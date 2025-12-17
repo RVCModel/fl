@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
-import { defaultLocale } from "@/i18n/config";
+import { defaultLocale, locales, type Locale } from "@/i18n/config";
 import { headers } from "next/headers";
+
+function isLocale(value: string | null | undefined): value is Locale {
+  return !!value && locales.includes(value as Locale);
+}
 
 export default async function Home() {
   const headerList = await headers();
@@ -21,9 +25,9 @@ export default async function Home() {
       })
       .sort((a, b) => b.q - a.q);
     for (const { lang } of items) {
-      if (lang.startsWith("zh")) return "zh";
-      if (lang.startsWith("ja")) return "ja";
-      if (lang.startsWith("en")) return "en";
+      const normalized = lang.replace(/_/g, "-");
+      const primary = normalized.split("-")[0];
+      if (isLocale(primary)) return primary;
     }
     return null;
   })();

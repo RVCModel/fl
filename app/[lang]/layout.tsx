@@ -18,12 +18,25 @@ export async function generateMetadata({
   const dictionary = getDictionary(locale);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://demixr.com";
 
-  const baseTitle =
-    locale === "en"
-      ? "Online Vocal Separation Website"
-      : locale === "ja"
-        ? "オンラインボーカル分離サイト"
-        : "在线人声分离网站";
+  const languageAlternates = Object.fromEntries(locales.map((l) => [l, `${siteUrl}/${l}`])) as Record<
+    string,
+    string
+  >;
+
+  const baseTitleByLocale: Record<Locale, string> = {
+    zh: "在线人声分离网站",
+    en: "Online Vocal Separation Website",
+    ja: "オンラインボーカル分離サイト",
+    ko: "온라인 보컬 분리 웹사이트",
+    ru: "Онлайн-сервис для отделения вокала",
+    de: "Online-Website zur Vocal-Trennung",
+    pt: "Site de separação vocal online",
+    it: "Sito di separazione vocale online",
+    ar: "موقع فصل الغناء عبر الإنترنت",
+    es: "Sitio web de separación vocal en línea",
+    fr: "Site de séparation vocale en ligne",
+  };
+  const baseTitle = baseTitleByLocale[locale];
   const fullBaseTitle = `${baseTitle} - Demixr.com`;
 
   return {
@@ -34,11 +47,7 @@ export async function generateMetadata({
     description: dictionary.tagline,
     alternates: {
       canonical: `/${locale}`,
-      languages: {
-        zh: `${siteUrl}/zh`,
-        en: `${siteUrl}/en`,
-        ja: `${siteUrl}/ja`,
-      },
+      languages: languageAlternates,
     },
     openGraph: {
       type: "website",

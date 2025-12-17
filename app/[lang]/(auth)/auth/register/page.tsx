@@ -4,13 +4,8 @@ import { use, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { defaultLocale, Locale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { pickLocale } from "@/i18n/locale-utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,9 +20,7 @@ type PageProps = {
 export default function RegisterPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const langParam = resolvedParams?.lang;
-  const locale = locales.includes(langParam as Locale)
-    ? (langParam as Locale)
-    : defaultLocale;
+  const locale = locales.includes(langParam as Locale) ? (langParam as Locale) : defaultLocale;
   const dictionary = getDictionary(locale);
   const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -37,6 +30,33 @@ export default function RegisterPage({ params }: PageProps) {
     const text = String(raw || "");
     return text || dictionary.errors.unknown;
   };
+
+  const passwordMismatchText = pickLocale(locale, {
+    zh: "两次密码不一致",
+    en: "Passwords do not match",
+    ja: "パスワードが一致しません",
+    ko: "비밀번호가 일치하지 않습니다",
+    ru: "Пароли не совпадают",
+    de: "Passwörter stimmen nicht überein",
+    pt: "As senhas não coincidem",
+    it: "Le password non coincidono",
+    ar: "كلمتا المرور غير متطابقتين",
+    es: "Las contraseñas no coinciden",
+    fr: "Les mots de passe ne correspondent pas",
+  });
+  const registerFailedFallback = pickLocale(locale, {
+    zh: "注册失败",
+    en: "Register failed",
+    ja: "登録に失敗しました",
+    ko: "회원가입에 실패했습니다",
+    ru: "Не удалось зарегистрироваться",
+    de: "Registrierung fehlgeschlagen",
+    pt: "Falha no cadastro",
+    it: "Registrazione non riuscita",
+    ar: "فشل التسجيل",
+    es: "Error al registrarse",
+    fr: "Échec de l’inscription",
+  });
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -48,7 +68,7 @@ export default function RegisterPage({ params }: PageProps) {
 
     if (password !== confirmPassword) {
       setState("error");
-      setMessage(locale === "en" ? "Passwords do not match" : locale === "ja" ? "パスワードが一致しません" : "两次密码不一致");
+      setMessage(passwordMismatchText);
       return;
     }
     if (!accepted) {
@@ -67,7 +87,7 @@ export default function RegisterPage({ params }: PageProps) {
     const data = await res.json();
     if (!res.ok) {
       setState("error");
-      setMessage(mapAuthError(data.error || "Register failed"));
+      setMessage(mapAuthError(data.error || registerFailedFallback));
       return;
     }
     setState("success");
@@ -78,9 +98,7 @@ export default function RegisterPage({ params }: PageProps) {
     <Card className="border border-border bg-card shadow-2xl shadow-black/30">
       <CardHeader className="flex items-center justify-between">
         <div>
-          <CardTitle className="text-2xl">
-            {dictionary.auth.register.title}
-          </CardTitle>
+          <CardTitle className="text-2xl">{dictionary.auth.register.title}</CardTitle>
           <CardDescription>{dictionary.auth.register.subtitle}</CardDescription>
         </div>
         <Badge>{dictionary.appName}</Badge>
@@ -116,21 +134,13 @@ export default function RegisterPage({ params }: PageProps) {
           </Button>
         </form>
         {message && (
-          <Alert
-            variant={state === "error" ? "destructive" : "default"}
-            className={state === "error" ? "" : "border-primary/30 bg-primary/10"}
-          >
-            <AlertDescription className={state === "error" ? "text-foreground" : "text-primary"}>
-              {message}
-            </AlertDescription>
+          <Alert variant={state === "error" ? "destructive" : "default"} className={state === "error" ? "" : "border-primary/30 bg-primary/10"}>
+            <AlertDescription className={state === "error" ? "text-foreground" : "text-primary"}>{message}</AlertDescription>
           </Alert>
         )}
         <p className="pt-2 text-center text-sm text-muted-foreground">
           {dictionary.auth.register.alt}{" "}
-          <Link
-            href={`/${locale}/auth/login`}
-            className="text-primary hover:underline"
-          >
+          <Link href={`/${locale}/auth/login`} className="text-primary hover:underline">
             {dictionary.auth.login.action}
           </Link>
         </p>
@@ -138,3 +148,4 @@ export default function RegisterPage({ params }: PageProps) {
     </Card>
   );
 }
+

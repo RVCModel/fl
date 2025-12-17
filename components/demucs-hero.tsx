@@ -10,8 +10,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Dictionary } from "@/i18n/dictionaries";
 import { Faq } from "@/components/faq";
-import { Play, SkipBack } from "lucide-react";
+import { Play, SkipBack, Loader2 } from "lucide-react"; // 新增 Loader2
 import { getValidAccessToken } from "@/lib/auth-client";
+import { pickLocale } from "@/i18n/locale-utils";
 
 // --- 类型定义 ---
 type Phase = "idle" | "uploading" | "processing" | "done" | "error";
@@ -34,7 +35,8 @@ const TRACK_COLORS: Record<StemKey, { bg: string; wave: string }> = {
   drums: { bg: "#4a2c35", wave: "#fca5a5" },
 };
 
-// --- 组件: MixerSlider (完美复刻版) ---
+// --- 组件: MixerSlider ---
+
 function MixerSlider({
   value,
   onLiveChange,
@@ -54,6 +56,7 @@ function MixerSlider({
   const PAD_BOTTOM = 4;
   const H_LEFT = 3;
   const H_RIGHT = 12;
+
   const Y_BOTTOM = H - PAD_BOTTOM;
   const Y_TOP_LEFT = Y_BOTTOM - H_LEFT;
   const Y_TOP_RIGHT = Y_BOTTOM - H_RIGHT;
@@ -61,6 +64,7 @@ function MixerSlider({
   const updateVisuals = (v: number) => {
     const x = (v / 100) * W;
     const yTopAtX = Y_TOP_LEFT + (Y_TOP_RIGHT - Y_TOP_LEFT) * (v / 100);
+
     activePathRef.current?.setAttribute(
       "points",
       `0,${Y_BOTTOM} ${x},${Y_BOTTOM} ${x},${yTopAtX} 0,${Y_TOP_LEFT}`
@@ -136,9 +140,11 @@ function MixerSlider({
 }
 
 // --- 主组件 ---
+
 export default function DemucsHero({ dictionary, locale }: { dictionary: Dictionary; locale: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [phase, setPhase] = useState<Phase>("idle");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [position, setPosition] = useState<number>(0);
@@ -149,8 +155,267 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
   const [downloadFormat, setDownloadFormat] = useState<"mp3" | "wav">("mp3");
   const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
 
+  // 新增：下载状态追踪
+  const [downloadingItems, setDownloadingItems] = useState<Record<string, boolean>>({});
+
   const notFoundStreakRef = useRef(0);
   const STORAGE_KEY = "vofl:demucs-state";
+
+  const ui = pickLocale(locale, {
+    zh: {
+      howItWorksTag: "工作方式",
+      howItWorksTitle: "乐器分离（4轨）",
+      howItWorksSubtitle: "使用 Demucs 将音乐分离为人声、鼓、贝斯与其他。",
+      previewAlt: "四轨分离预览",
+      uploadingTitle: "上传中…",
+      processingTitle: "四轨分离中…",
+      uploadingDesc: "正在准备音频并上传，请稍候。",
+      processingDesc: "AI 正在分离四个轨道，可能需要一分钟。请保持页面开启。",
+      queueAheadTpl: "前方排队人数：{position}。",
+      queueEtaTpl: "预计等待：{seconds} 秒。",
+      formatLabel: "格式",
+      downloadTitle: "下载",
+      downloadHint: "选择需要下载的音轨。",
+      saveLabel: "保存",
+      selectedLabel: "已选择",
+      reupload: "重新上传",
+      uploadFailed: "上传失败",
+      tryAgain: "重试",
+      missingDemucsDeps: "服务器缺少 Demucs 依赖，请联系管理员。",
+      stems: { vocals: "人声", drums: "鼓", bass: "贝斯", other: "伴奏" },
+      downloadStems: { vocals: "下载人声", drums: "下载鼓", bass: "下载贝斯", other: "下载伴奏" },
+    },
+    en: {
+      howItWorksTag: "How it works",
+      howItWorksTitle: "Separate instruments into 4 stems",
+      howItWorksSubtitle: "Split music into vocals, drums, bass and other with Demucs.",
+      previewAlt: "Demucs preview",
+      uploadingTitle: "Uploading…",
+      processingTitle: "Separating 4 stems…",
+      uploadingDesc: "Preparing your audio for processing.",
+      processingDesc: "AI is separating stems, this may take a minute. Please keep this page open.",
+      queueAheadTpl: "Ahead in queue: {position}.",
+      queueEtaTpl: "Est. wait: {seconds}s.",
+      formatLabel: "Format",
+      downloadTitle: "Download",
+      downloadHint: "Choose a stem to download.",
+      saveLabel: "Save",
+      selectedLabel: "Selected",
+      reupload: "Re-upload",
+      uploadFailed: "Upload failed",
+      tryAgain: "Try again",
+      missingDemucsDeps: "Server is missing Demucs dependencies. Please contact support.",
+      stems: { vocals: "Vocals", drums: "Drums", bass: "Bass", other: "Music" },
+      downloadStems: { vocals: "Download Vocals", drums: "Download Drums", bass: "Download Bass", other: "Download Music" },
+    },
+    ja: {
+      howItWorksTag: "動作モード",
+      howItWorksTitle: "楽器を4トラックに分離",
+      howItWorksSubtitle: "Demucsでボーカル/ドラム/ベース/その他に分離します。",
+      previewAlt: "Demucs プレビュー",
+      uploadingTitle: "アップロード中…",
+      processingTitle: "4トラック分離中…",
+      uploadingDesc: "処理の準備をしています。",
+      processingDesc: "AI が分離しています。しばらくお待ちください。",
+      queueAheadTpl: "前方待ち人数: {position}。",
+      queueEtaTpl: "予想到着: {seconds} 秒。",
+      formatLabel: "形式",
+      downloadTitle: "ダウンロード",
+      downloadHint: "ダウンロードするトラックを選択してください。",
+      saveLabel: "保存",
+      selectedLabel: "選択中",
+      reupload: "再アップロード",
+      uploadFailed: "アップロード失敗",
+      tryAgain: "再試行",
+      missingDemucsDeps: "サーバーに Demucs 依存関係がありません。サポートに連絡してください。",
+      stems: { vocals: "ボーカル", drums: "ドラム", bass: "ベース", other: "伴奏" },
+      downloadStems: { vocals: "ボーカルをDL", drums: "ドラムをDL", bass: "ベースをDL", other: "伴奏をDL" },
+    },
+    ko: {
+      howItWorksTag: "작동 방식",
+      howItWorksTitle: "악기를 4개 스템으로 분리",
+      howItWorksSubtitle: "Demucs로 보컬/드럼/베이스/기타 스템으로 분리합니다.",
+      previewAlt: "Demucs 미리보기",
+      uploadingTitle: "업로드 중…",
+      processingTitle: "4 스템 분리 중…",
+      uploadingDesc: "오디오를 준비하고 업로드하는 중입니다.",
+      processingDesc: "AI가 스템을 분리하고 있습니다. 최대 1분 정도 걸릴 수 있어요. 이 페이지를 열어 두세요.",
+      queueAheadTpl: "앞에 대기: {position}명.",
+      queueEtaTpl: "예상 대기: {seconds}초.",
+      formatLabel: "형식",
+      downloadTitle: "다운로드",
+      downloadHint: "다운로드할 스템을 선택하세요.",
+      saveLabel: "저장",
+      selectedLabel: "선택됨",
+      reupload: "다시 업로드",
+      uploadFailed: "업로드 실패",
+      tryAgain: "다시 시도",
+      missingDemucsDeps: "서버에 Demucs 의존성이 없습니다. 지원팀에 문의해 주세요.",
+      stems: { vocals: "보컬", drums: "드럼", bass: "베이스", other: "기타" },
+      downloadStems: { vocals: "보컬 다운로드", drums: "드럼 다운로드", bass: "베이스 다운로드", other: "기타 다운로드" },
+    },
+    ru: {
+      howItWorksTag: "Как это работает",
+      howItWorksTitle: "Разделение на 4 стема",
+      howItWorksSubtitle: "Разделяйте трек на вокал, барабаны, бас и другое с помощью Demucs.",
+      previewAlt: "Предпросмотр Demucs",
+      uploadingTitle: "Загрузка…",
+      processingTitle: "Разделение на 4 стема…",
+      uploadingDesc: "Подготавливаем и загружаем аудио.",
+      processingDesc: "ИИ разделяет стемы. Это может занять около минуты. Не закрывайте страницу.",
+      queueAheadTpl: "Перед вами в очереди: {position}.",
+      queueEtaTpl: "Ожидание: ~{seconds}с.",
+      formatLabel: "Формат",
+      downloadTitle: "Скачать",
+      downloadHint: "Выберите стем для скачивания.",
+      saveLabel: "Сохранить",
+      selectedLabel: "Выбрано",
+      reupload: "Загрузить заново",
+      uploadFailed: "Ошибка загрузки",
+      tryAgain: "Повторить",
+      missingDemucsDeps: "На сервере отсутствуют зависимости Demucs. Свяжитесь со службой поддержки.",
+      stems: { vocals: "Вокал", drums: "Барабаны", bass: "Бас", other: "Другое" },
+      downloadStems: { vocals: "Скачать вокал", drums: "Скачать барабаны", bass: "Скачать бас", other: "Скачать другое" },
+    },
+    de: {
+      howItWorksTag: "So funktioniert’s",
+      howItWorksTitle: "Instrumente in 4 Stems trennen",
+      howItWorksSubtitle: "Trenne Musik mit Demucs in Vocals, Drums, Bass und Other.",
+      previewAlt: "Demucs-Vorschau",
+      uploadingTitle: "Wird hochgeladen…",
+      processingTitle: "4 Stems werden getrennt…",
+      uploadingDesc: "Audio wird vorbereitet und hochgeladen.",
+      processingDesc: "KI trennt die Stems. Das kann etwa eine Minute dauern. Bitte Seite geöffnet lassen.",
+      queueAheadTpl: "Vor dir in der Warteschlange: {position}.",
+      queueEtaTpl: "Geschätzte Wartezeit: {seconds}s.",
+      formatLabel: "Format",
+      downloadTitle: "Download",
+      downloadHint: "Wähle einen Stem zum Herunterladen.",
+      saveLabel: "Speichern",
+      selectedLabel: "Ausgewählt",
+      reupload: "Neu hochladen",
+      uploadFailed: "Upload fehlgeschlagen",
+      tryAgain: "Erneut versuchen",
+      missingDemucsDeps: "Auf dem Server fehlen Demucs-Abhängigkeiten. Bitte Support kontaktieren.",
+      stems: { vocals: "Vocals", drums: "Drums", bass: "Bass", other: "Other" },
+      downloadStems: { vocals: "Vocals herunterladen", drums: "Drums herunterladen", bass: "Bass herunterladen", other: "Other herunterladen" },
+    },
+    pt: {
+      howItWorksTag: "Como funciona",
+      howItWorksTitle: "Separar instrumentos em 4 stems",
+      howItWorksSubtitle: "Separe música em vocais, bateria, baixo e outros com Demucs.",
+      previewAlt: "Prévia Demucs",
+      uploadingTitle: "Enviando…",
+      processingTitle: "Separando 4 stems…",
+      uploadingDesc: "Preparando e enviando o áudio.",
+      processingDesc: "A IA está separando os stems. Pode levar cerca de um minuto. Mantenha esta página aberta.",
+      queueAheadTpl: "À sua frente na fila: {position}.",
+      queueEtaTpl: "Espera estimada: {seconds}s.",
+      formatLabel: "Formato",
+      downloadTitle: "Baixar",
+      downloadHint: "Escolha um stem para baixar.",
+      saveLabel: "Salvar",
+      selectedLabel: "Selecionado",
+      reupload: "Enviar novamente",
+      uploadFailed: "Falha no envio",
+      tryAgain: "Tentar novamente",
+      missingDemucsDeps: "O servidor está sem dependências do Demucs. Entre em contato com o suporte.",
+      stems: { vocals: "Vocal", drums: "Bateria", bass: "Baixo", other: "Outros" },
+      downloadStems: { vocals: "Baixar vocal", drums: "Baixar bateria", bass: "Baixar baixo", other: "Baixar outros" },
+    },
+    it: {
+      howItWorksTag: "Come funziona",
+      howItWorksTitle: "Separa strumenti in 4 stem",
+      howItWorksSubtitle: "Separa musica in voce, batteria, basso e altro con Demucs.",
+      previewAlt: "Anteprima Demucs",
+      uploadingTitle: "Caricamento…",
+      processingTitle: "Separazione 4 stem…",
+      uploadingDesc: "Preparazione e caricamento dell’audio.",
+      processingDesc: "L’IA sta separando gli stem. Potrebbe richiedere circa un minuto. Tieni aperta questa pagina.",
+      queueAheadTpl: "Davanti in coda: {position}.",
+      queueEtaTpl: "Attesa stimata: {seconds}s.",
+      formatLabel: "Formato",
+      downloadTitle: "Scarica",
+      downloadHint: "Scegli uno stem da scaricare.",
+      saveLabel: "Salva",
+      selectedLabel: "Selezionato",
+      reupload: "Carica di nuovo",
+      uploadFailed: "Caricamento non riuscito",
+      tryAgain: "Riprova",
+      missingDemucsDeps: "Mancano le dipendenze Demucs sul server. Contatta l’assistenza.",
+      stems: { vocals: "Voce", drums: "Batteria", bass: "Basso", other: "Altro" },
+      downloadStems: { vocals: "Scarica voce", drums: "Scarica batteria", bass: "Scarica basso", other: "Scarica altro" },
+    },
+    ar: {
+      howItWorksTag: "كيف يعمل",
+      howItWorksTitle: "افصل الآلات إلى 4 مسارات",
+      howItWorksSubtitle: "افصل الموسيقى إلى غناء وطبول وباص وآخر باستخدام Demucs.",
+      previewAlt: "معاينة Demucs",
+      uploadingTitle: "جارٍ الرفع…",
+      processingTitle: "جارٍ فصل 4 مسارات…",
+      uploadingDesc: "جارٍ تجهيز الصوت ورفعه للمعالجة.",
+      processingDesc: "يقوم الذكاء الاصطناعي بفصل المسارات. قد يستغرق ذلك حوالي دقيقة. يُرجى إبقاء هذه الصفحة مفتوحة.",
+      queueAheadTpl: "عدد المنتظرين قبلك: {position}.",
+      queueEtaTpl: "الانتظار المتوقع: {seconds}ث.",
+      formatLabel: "التنسيق",
+      downloadTitle: "تنزيل",
+      downloadHint: "اختر مسارًا للتنزيل.",
+      saveLabel: "حفظ",
+      selectedLabel: "محدد",
+      reupload: "إعادة الرفع",
+      uploadFailed: "فشل الرفع",
+      tryAgain: "أعد المحاولة",
+      missingDemucsDeps: "يفتقد الخادم لاعتمادات Demucs. يرجى التواصل مع الدعم.",
+      stems: { vocals: "غناء", drums: "طبول", bass: "باص", other: "أخرى" },
+      downloadStems: { vocals: "تنزيل الغناء", drums: "تنزيل الطبول", bass: "تنزيل الباص", other: "تنزيل أخرى" },
+    },
+    es: {
+      howItWorksTag: "Cómo funciona",
+      howItWorksTitle: "Separa instrumentos en 4 stems",
+      howItWorksSubtitle: "Separa música en voz, batería, bajo y otros con Demucs.",
+      previewAlt: "Vista previa Demucs",
+      uploadingTitle: "Subiendo…",
+      processingTitle: "Separando 4 stems…",
+      uploadingDesc: "Preparando y subiendo el audio para procesarlo.",
+      processingDesc: "La IA está separando los stems. Puede tardar alrededor de un minuto. Mantén esta página abierta.",
+      queueAheadTpl: "Delante en la cola: {position}.",
+      queueEtaTpl: "Espera estimada: {seconds}s.",
+      formatLabel: "Formato",
+      downloadTitle: "Descargar",
+      downloadHint: "Elige un stem para descargar.",
+      saveLabel: "Guardar",
+      selectedLabel: "Seleccionado",
+      reupload: "Volver a subir",
+      uploadFailed: "Error al subir",
+      tryAgain: "Reintentar",
+      missingDemucsDeps: "Faltan dependencias de Demucs en el servidor. Contacta con soporte.",
+      stems: { vocals: "Voz", drums: "Batería", bass: "Bajo", other: "Otros" },
+      downloadStems: { vocals: "Descargar voz", drums: "Descargar batería", bass: "Descargar bajo", other: "Descargar otros" },
+    },
+    fr: {
+      howItWorksTag: "Comment ça marche",
+      howItWorksTitle: "Séparez les instruments en 4 stems",
+      howItWorksSubtitle: "Séparez la musique en voix, batterie, basse et autres avec Demucs.",
+      previewAlt: "Aperçu Demucs",
+      uploadingTitle: "Envoi…",
+      processingTitle: "Séparation en 4 stems…",
+      uploadingDesc: "Préparation et envoi de l’audio.",
+      processingDesc: "L’IA sépare les stems. Cela peut prendre environ une minute. Gardez cette page ouverte.",
+      queueAheadTpl: "Devant vous dans la file : {position}.",
+      queueEtaTpl: "Attente estimée : {seconds}s.",
+      formatLabel: "Format",
+      downloadTitle: "Télécharger",
+      downloadHint: "Choisissez un stem à télécharger.",
+      saveLabel: "Enregistrer",
+      selectedLabel: "Sélectionné",
+      reupload: "Renvoyer",
+      uploadFailed: "Échec de l’envoi",
+      tryAgain: "Réessayer",
+      missingDemucsDeps: "Le serveur n’a pas les dépendances Demucs. Veuillez contacter le support.",
+      stems: { vocals: "Voix", drums: "Batterie", bass: "Basse", other: "Autre" },
+      downloadStems: { vocals: "Télécharger la voix", drums: "Télécharger la batterie", bass: "Télécharger la basse", other: "Télécharger autre" },
+    },
+  });
 
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloadStem, setDownloadStem] = useState<StemKey>("vocals");
@@ -165,11 +430,10 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
   const [activeStem, setActiveStem] = useState<StemKey | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // === 状态: 仍然保留，用于跳转和初始渲染 ===
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  // === 关键修改：增加直接操作 DOM 的 Ref ===
+  // === Refs ===
   const playheadRefs = useRef<Record<StemKey, HTMLDivElement | null>>({
     vocals: null,
     drums: null,
@@ -177,7 +441,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     other: null,
   });
   const timeDisplayRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef<number | null>(null); // Animation Loop ID
+  const rafRef = useRef<number | null>(null);
 
   const audioRefs: Record<StemKey, React.RefObject<HTMLAudioElement | null>> = {
     vocals: useRef<HTMLAudioElement | null>(null),
@@ -260,11 +524,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     if (code === "DAILY_LIMIT_REACHED") return formatTemplate(dictionary.errors.dailyLimitReached, { limit: detail?.limit ?? 10 });
     if (code === "UNSUPPORTED_FILE_TYPE") return dictionary.errors.unsupportedFileType;
     if (code === "demucs_not_installed") {
-      return locale === "en"
-        ? "Server is missing Demucs dependencies. Please contact support."
-        : locale === "ja"
-        ? "サーバーに Demucs 依存関係がありません。サポートに連絡してください。"
-        : "服务器缺少 Demucs 依赖，请联系管理员。";
+      return ui.missingDemucsDeps;
     }
     if (res.status === 413) return formatTemplate(dictionary.errors.fileTooLarge, { max_mb: 200 });
     return dictionary.errors.uploadFailed;
@@ -276,11 +536,41 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     return false;
   };
 
+  const uploadNetworkError = (fileSizeBytes: number) => {
+    const base = pickLocale(locale, {
+      zh: "网络请求失败，请检查后端服务是否可访问。",
+      en: "Network request failed. Please check that the backend is reachable.",
+      ja: "ネットワークリクエストに失敗しました。バックエンドに接続できるか確認してください。",
+      ko: "네트워크 요청에 실패했습니다. 백엔드에 연결 가능한지 확인해 주세요.",
+      ru: "Сетевой запрос не выполнен. Проверьте доступность бэкенда.",
+      de: "Netzwerkfehler. Bitte prüfe, ob das Backend erreichbar ist.",
+      pt: "Falha na requisição de rede. Verifique se o backend está acessível.",
+      it: "Richiesta di rete non riuscita. Verifica che il backend sia raggiungibile.",
+      ar: "فشل طلب الشبكة. يرجى التأكد من إمكانية الوصول إلى الخادم الخلفي.",
+      es: "Falló la solicitud de red. Comprueba que el backend sea accesible.",
+      fr: "Échec de la requête réseau. Vérifiez que le backend est accessible.",
+    });
+
+    if (fileSizeBytes < 100 * 1024 * 1024) return base;
+
+    const large = pickLocale(locale, {
+      zh: "上传失败：连接被中断（可能是反向代理/平台限制了上传大小，例如 100MB）。请尝试更小的文件，或提高服务器的请求体大小限制。",
+      en: "Upload failed: connection was interrupted (a proxy/platform may limit upload size, e.g. 100MB). Try a smaller file or increase the server request body limit.",
+      ja: "アップロード失敗：接続が中断されました（プロキシ/プラットフォームが 100MB などの上限を設けている可能性があります）。小さいファイルで試すか、サーバー側の上限を引き上げてください。",
+      ko: "업로드 실패: 연결이 중단되었습니다(프록시/플랫폼이 100MB 등 업로드 크기를 제한할 수 있습니다). 더 작은 파일로 시도하거나 서버 제한을 늘려 주세요.",
+      ru: "Загрузка не удалась: соединение было прервано (прокси/платформа может ограничивать размер, например 100 МБ). Попробуйте файл меньше или увеличьте лимит на сервере.",
+      de: "Upload fehlgeschlagen: Verbindung wurde unterbrochen (Proxy/Plattform kann z. B. auf 100MB begrenzen). Versuche eine kleinere Datei oder erhöhe das Server-Limit.",
+      pt: "Falha no upload: a conexão foi interrompida (um proxy/plataforma pode limitar, ex.: 100MB). Tente um arquivo menor ou aumente o limite do servidor.",
+      it: "Upload non riuscito: la connessione è stata interrotta (un proxy/piattaforma può limitare, es. 100MB). Prova un file più piccolo o aumenta il limite del server.",
+      ar: "فشل الرفع: انقطع الاتصال (قد يفرض وسيط/منصة حدًا مثل 100MB). جرّب ملفًا أصغر أو ارفع حد حجم الطلب على الخادم.",
+      es: "La subida falló: la conexión se interrumpió (un proxy/plataforma puede limitar, p. ej. 100MB). Prueba con un archivo más pequeño o aumenta el límite del servidor.",
+      fr: "Échec de l’envoi : la connexion a été interrompue (un proxy/plateforme peut limiter, ex. 100 Mo). Essayez un fichier plus petit ou augmentez la limite côté serveur.",
+    });
+    return large;
+  };
+
   const stemLabel = (stem: StemKey) => {
-    const zh: Record<StemKey, string> = { vocals: "人声", drums: "鼓", bass: "贝斯", other: "伴奏" };
-    const en: Record<StemKey, string> = { vocals: "Vocal", drums: "Drums", bass: "Bass", other: "Music" };
-    const ja: Record<StemKey, string> = { vocals: "ボーカル", drums: "ドラム", bass: "ベース", other: "伴奏" };
-    return (locale === "en" ? en : locale === "ja" ? ja : zh)[stem];
+    return ui.stems[stem];
   };
 
   const formatTime = (time: number) => {
@@ -387,6 +677,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
             if (timer) clearInterval(timer);
             return;
           }
+
           const token = await getValidAccessToken();
           if (!token) {
             setPhase("error");
@@ -394,9 +685,11 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
             clearInterval(timer!);
             return;
           }
+
           const res = await fetch(`${apiBase}/demucs/tasks/${taskId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
+
           if (res.status === 404) {
             notFoundStreakRef.current += 1;
             if (notFoundStreakRef.current < 3) return;
@@ -411,10 +704,12 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
             if (timer) clearInterval(timer);
             return;
           }
+
           notFoundStreakRef.current = 0;
           const data = await safeJson(res);
           setPosition(data.position ?? 0);
           setEtaSeconds(typeof data.eta_seconds === "number" ? data.eta_seconds : 0);
+
           if (data.status === "completed") {
             setUrls({
               vocals: normalizeBackendUrl(data.vocals_url || data.vocalsUrl),
@@ -427,12 +722,14 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
             setMessage("");
             setEtaSeconds(0);
             if (timer) clearInterval(timer);
+
              try { await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ external_task_id: taskId, source_url: `task:${taskId}`, status: "completed", model: "demucs", progress: 1, result_url: data.vocals_url || data.vocalsUrl || null }) }); } catch {}
           } else if (data.status === "failed") {
             setPhase("error");
             setMessage(data.error || "处理失败");
             setEtaSeconds(0);
             if (timer) clearInterval(timer);
+
              try { await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ external_task_id: taskId, source_url: `task:${taskId}`, status: "failed", model: "demucs", progress: 1, result_url: null }) }); } catch {}
           }
         } catch (err) {
@@ -454,24 +751,29 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     setPosition(0);
     setActiveStem(null);
     setProcessingStartedAt(null);
+
     try {
       const token = await getValidAccessToken();
       if (!token) {
         router.push(`/${locale}/auth/login`);
         return;
       }
+
       const formData = new FormData();
       formData.append("file", file);
+
       const res = await fetch(`${apiBase}/demucs/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
+
       const data = await safeJson(res);
       if (!res.ok) {
         if (res.status === 401) { router.push(`/${locale}/auth/login`); return; }
         throw new Error(getApiErrorMessage(res, data));
       }
+
       setTaskId(data.task_id);
       setPosition(data.position ?? 0);
       setEtaSeconds(typeof data.eta_seconds === "number" ? data.eta_seconds : 0);
@@ -481,11 +783,14 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
       }
       setProcessingStartedAt(Date.now());
       setPhase("processing");
+
       try { await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ external_task_id: data.task_id, source_url: file.name, status: "queued", model: "demucs", progress: 0, result_url: null }) }); } catch (err) { if (!isAbortError(err)) console.error("record job failed", err); }
     } catch (err: any) {
       if (!isAbortError(err)) {
         setPhase("error");
-        setMessage(err.message || dictionary.errors.uploadFailed);
+        const isFetchFailed =
+          err instanceof TypeError && typeof err.message === "string" && /failed to fetch/i.test(err.message);
+        setMessage(isFetchFailed ? uploadNetworkError(file.size) : err.message || dictionary.errors.uploadFailed);
       }
     }
   };
@@ -509,12 +814,17 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     const container = containerRefs[stem].current;
     const audio = audioRefs[stem].current;
     const url = urls[stem];
+
     if (!container || !audio || !url) return;
+
     const existing = wsRefs[stem].current;
     const previousUrl = wsLoadedUrlRef.current[stem];
+
     if (existing && previousUrl === url) return;
+
     if (existing) existing.destroy();
     container.innerHTML = "";
+
     const { wave } = TRACK_COLORS[stem];
     const ws = WaveSurfer.create({
       container,
@@ -534,6 +844,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
       hideScrollbar: true,
       autoScroll: false,
     });
+
     try {
       const ret = (ws as any).load(url);
       if (ret && typeof ret.then === "function") {
@@ -544,9 +855,11 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     } catch (err) {
       if (!isAbortError(err)) console.error("wavesurfer load failed", err);
     }
+
     const initialVolume = (volumes[stem] ?? 60) / 100;
     ws.setVolume(initialVolume);
     audio.volume = initialVolume;
+
     wsRefs[stem].current = ws;
     wsLoadedUrlRef.current[stem] = url;
   };
@@ -556,7 +869,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     DISPLAY_STEMS.forEach((stem) => setupWaveSurfer(stem));
   }, [phase, urls.vocals, urls.drums, urls.bass, urls.other]);
 
-  // === 关键修改：同步可视化逻辑 ===
+  // === 同步可视化逻辑 ===
   const syncVisuals = () => {
     const master = audioRefs[MASTER_STEM].current;
     if (!master) return;
@@ -586,13 +899,14 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
       if (!audio) return;
       try { audio.currentTime = time; } catch {}
     });
+
     // 更新 State 保持逻辑同步
     setCurrentTime(time);
     // 立即更新视觉
     syncVisuals();
   };
 
-  // === 关键修改：播放控制循环 ===
+  // === 播放控制循环 ===
   useEffect(() => {
     if (phase !== "done") return;
     const master = audioRefs[MASTER_STEM].current;
@@ -614,7 +928,6 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     const onPause = () => {
       setIsPlaying(false);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      // 暂停时同步一次 State，确保 React 状态正确
       setCurrentTime(master.currentTime);
       syncVisuals();
     };
@@ -625,18 +938,13 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
         setCurrentTime(0);
         syncVisuals();
     }
-
     const onMeta = () => setDuration(Number.isFinite(master.duration) ? master.duration : 0);
     
-    // 监听 master 轨道即可，其他轨道通常是被动跟随
     master.addEventListener("loadedmetadata", onMeta);
     master.addEventListener("ended", onEnded);
     master.addEventListener("play", onPlay);
     master.addEventListener("pause", onPause);
     
-    // timeupdate 不再用于刷新进度条，但可以保留用于同步 duration
-    // master.addEventListener("timeupdate", ...); 
-
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       master.removeEventListener("loadedmetadata", onMeta);
@@ -667,6 +975,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
   const togglePlay = () => {
     const master = audioRefs[MASTER_STEM].current;
     if (!master) return;
+
     if (!isPlaying) {
       const t = master.currentTime || 0;
       // 对齐所有轨道
@@ -690,23 +999,30 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     seekAll(0);
   };
 
-  // ... (Download Handlers unchanged)
+  // 修改后的 handleDownload
   const handleDownload = async (stem: StemKey) => {
-      // ... 原有逻辑 ...
      if (!taskId) return;
+     
+     // 标记下载中
+     setDownloadingItems((prev) => ({ ...prev, [stem]: true }));
+
     try {
       const token = await getValidAccessToken();
       if (!token) { router.push(`/${locale}/auth/login`); return; }
       const isSubscribed = subscriptionActive === true;
       const fmt: "mp3" | "wav" = isSubscribed ? downloadFormat : "mp3";
+
       if (!isSubscribed && fmt === "wav") { setMessage(dictionary.errors.wavDownloadRequiresSubscription); router.push(`/${locale}/billing`); return; }
+
       const res = await fetch(`${apiBase}/demucs/download/${taskId}/${stem}?format=${fmt}`, { headers: { Authorization: `Bearer ${token}` }, });
+
       if (!res.ok) {
         const data = await safeJson(res);
         const detail = data?.detail ?? data ?? {};
         if (detail?.code === "WAV_REQUIRES_SUBSCRIPTION") { setMessage(dictionary.errors.wavDownloadRequiresSubscription); router.push(`/${locale}/billing`); return; }
         throw new Error(dictionary.errors.uploadFailed);
       }
+
       const blob = await res.blob();
       const objectUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -716,32 +1032,37 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
       a.click();
       a.remove();
       window.URL.revokeObjectURL(objectUrl);
-    } catch (err) { console.error("download failed", err); }
+    } catch (err) { 
+        console.error("download failed", err); 
+    } finally {
+        // 重置下载状态
+        setDownloadingItems((prev) => ({ ...prev, [stem]: false }));
+    }
   };
 
-  // ... (renderIdle, renderProcessing unchanged)
   const renderIdle = () => {
-      // ... 保持原样 ...
-      const playerImageSrc = locale === "en" ? "/remover/player_en.png" : locale === "ja" ? "/remover/player_ja.png" : "/remover/player_zh.png";
+      const playerImageSrc =
+        locale === "zh"
+          ? "/remover/player_zh.png"
+          : locale === "ja"
+            ? "/remover/player_ja.png"
+            : "/remover/player_en.png";
+
       return (
         <>
           <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#17171e] px-4 py-20 text-white">
             <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center text-center">
               <span className="mb-6 text-sm font-medium tracking-wide text-indigo-300">
-                {locale === "en" ? "How it works" : locale === "ja" ? "動作モード" : "工作方式"}
+                {ui.howItWorksTag}
               </span>
               <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl lg:text-6xl">
-                {locale === "en" ? "Separate instruments into 4 stems" : locale === "ja" ? "楽器を4トラックに分離" : "乐器分离（4轨）"}
+                {ui.howItWorksTitle}
               </h1>
               <p className="mb-12 max-w-2xl text-lg text-slate-300 md:text-xl">
-                {locale === "en"
-                  ? "Split music into vocals, drums, bass and other with Demucs."
-                  : locale === "ja"
-                    ? "Demucsでボーカル/ドラム/ベース/その他に分離します。"
-                    : "使用 Demucs 将音乐分离为人声、鼓、贝斯与其他。"}
+                {ui.howItWorksSubtitle}
               </p>
               <div className="mb-12 w-full max-w-3xl overflow-hidden rounded-2xl shadow-2xl shadow-black/40">
-                <img src={playerImageSrc} alt="demucs preview" className="w-full" />
+                <img src={playerImageSrc} alt={ui.previewAlt} className="w-full" />
               </div>
               <div className="flex flex-col items-center gap-3">
                 <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={onSelectFile} />
@@ -768,68 +1089,119 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
   };
 
   const renderProcessing = () => (
-       // ... 保持原样 ...
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#17171e] px-6 text-center text-foreground">
       <div className="relative flex max-w-2xl flex-col items-center gap-4 rounded-3xl border border-white/5 bg-black/30 px-10 py-12 shadow-[0_20px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-xl font-semibold text-white shadow-lg">?</div>
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-xl font-semibold text-white shadow-lg">♫</div>
         <h2 className="text-3xl font-bold">
           {phase === "uploading"
-            ? locale === "en" ? "Uploading…" : locale === "ja" ? "アップロード中…" : "上传中…"
-            : locale === "en" ? "Separating 4 stems…" : locale === "ja" ? "4トラック分離中…" : "四轨分离中…"}
+            ? ui.uploadingTitle
+            : ui.processingTitle}
         </h2>
         <p className="text-base text-muted-foreground">
           {phase === "uploading" ? (
-            locale === "en" ? "Preparing your audio for processing." : locale === "ja" ? "処理の準備をしています。" : "正在准备音频并上传，请稍候。"
+            ui.uploadingDesc
           ) : (
             <>
-              {locale === "en"
-                ? "AI is separating stems, this may take a minute. Please keep this page open."
-                : locale === "ja"
-                  ? "AI が分離しています。しばらくお待ちください。"
-                  : "AI 正在分离四个轨道，可能需要一分钟。请保持页面开启。"}
+              {ui.processingDesc}
               {position > 0 ? (
-                locale === "en" ? (
-                  <> Ahead in queue: {position}.</>
-                ) : locale === "ja" ? (
-                  <> 前方待ち人数: {position}。</>
-                ) : (
-                  <> 前方排队人数：{position}。</>
-                )
+                <> {formatTemplate(ui.queueAheadTpl, { position })}</>
               ) : null}
               {etaSeconds > 0 ? (
-                locale === "en" ? (
-                  <> Est. wait: {Math.max(0, Math.round(etaSeconds))}s.</>
-                ) : locale === "ja" ? (
-                  <> 予想到着: {Math.max(0, Math.round(etaSeconds))} 秒。</>
-                ) : (
-                  <> 预计等待：{Math.max(0, Math.round(etaSeconds))} 秒。</>
-                )
+                <> {formatTemplate(ui.queueEtaTpl, { seconds: Math.max(0, Math.round(etaSeconds)) })}</>
               ) : null}
               {subscriptionActive !== true ? (
                 <>
                   {" "}
-                  {locale === "en" ? (
-                    <>
-                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
-                        Subscribe
-                      </Link>{" "}
-                      to skip the queue.
-                    </>
-                  ) : locale === "ja" ? (
-                    <>
-                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
-                        サブスク
-                      </Link>
-                      で待ち時間なし。
-                    </>
-                  ) : (
-                    <>
-                      <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
-                        订阅
-                      </Link>
-                      会员免除排队。
-                    </>
-                  )}
+                  {pickLocale(locale, {
+                    zh: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          订阅
+                        </Link>
+                        会员免除排队。
+                      </>
+                    ),
+                    en: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Subscribe
+                        </Link>{" "}
+                        to skip the queue.
+                      </>
+                    ),
+                    ja: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          サブスク
+                        </Link>
+                        で待ち時間なし。
+                      </>
+                    ),
+                    ko: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          구독
+                        </Link>
+                        하면 대기 없이 바로 처리됩니다.
+                      </>
+                    ),
+                    ru: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Подписаться
+                        </Link>
+                        , чтобы пропустить очередь.
+                      </>
+                    ),
+                    de: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Abonnieren
+                        </Link>
+                        , um die Warteschlange zu überspringen.
+                      </>
+                    ),
+                    pt: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Assinar
+                        </Link>{" "}
+                        para pular a fila.
+                      </>
+                    ),
+                    it: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Abbonati
+                        </Link>{" "}
+                        per saltare la coda.
+                      </>
+                    ),
+                    ar: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          اشترك
+                        </Link>{" "}
+                        لتجاوز قائمة الانتظار.
+                      </>
+                    ),
+                    es: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Suscríbete
+                        </Link>{" "}
+                        para saltarte la cola.
+                      </>
+                    ),
+                    fr: (
+                      <>
+                        <Link href={`/${locale}/billing`} className="underline underline-offset-4 hover:text-foreground">
+                          Abonnez-vous
+                        </Link>{" "}
+                        pour éviter la file d’attente.
+                      </>
+                    ),
+                  })}
                 </>
               ) : null}
             </>
@@ -844,11 +1216,11 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
 
   const renderDone = () => {
     const playheadPercent = duration ? Math.min(1, currentTime / duration) : 0;
-    const formatLabel = locale === "en" ? "Format" : locale === "ja" ? "形式" : "格式";
-    const downloadTitle = locale === "en" ? "Download" : locale === "ja" ? "ダウンロード" : "下载";
-    const downloadHint = locale === "en" ? "Choose a stem to download." : locale === "ja" ? "ダウンロードするトラックを選択してください。" : "选择需要下载的音轨。";
-    const saveLabel = locale === "en" ? "Save" : locale === "ja" ? "保存" : "保存";
-    const selectedLabel = locale === "en" ? "Selected" : locale === "ja" ? "選択中" : "已选择";
+    const formatLabel = ui.formatLabel;
+    const downloadTitle = ui.downloadTitle;
+    const downloadHint = ui.downloadHint;
+    const saveLabel = ui.saveLabel;
+    const selectedLabel = ui.selectedLabel;
 
     const openDownloadDialog = () => {
       setDownloadStem(activeStem ?? "vocals");
@@ -856,16 +1228,14 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     };
 
     const downloadLabel = (stem: StemKey) => {
-        const zh: Record<StemKey, string> = { vocals: "下载人声", drums: "下载鼓", bass: "下载贝斯", other: "下载其他", };
-        const en: Record<StemKey, string> = { vocals: "Download Vocals", drums: "Download Drums", bass: "Download Bass", other: "Download Other", };
-        const ja: Record<StemKey, string> = { vocals: "ボーカルをDL", drums: "ドラムをDL", bass: "ベースをDL", other: "その他をDL", };
-        return (locale === "en" ? en : locale === "ja" ? ja : zh)[stem];
+        return ui.downloadStems[stem];
     };
 
     return (
       <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#17171e] text-foreground">
+        {/* 修复：移除 src，添加 crossOrigin */}
         {STEMS.map((stem) => (
-          <audio key={stem} ref={audioRefs[stem]} src={urls[stem] || undefined} />
+          <audio key={stem} ref={audioRefs[stem]} crossOrigin="anonymous" />
         ))}
         
         <main className="flex w-full flex-1 flex-col items-center justify-center px-2 pb-44 pt-12 sm:px-4 sm:pb-32 sm:pt-14">
@@ -874,6 +1244,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
               {DISPLAY_STEMS.map((stem, index) => {
                 const colors = TRACK_COLORS[stem];
                 const isLast = index === DISPLAY_STEMS.length - 1;
+
                 return (
                   <div key={stem} className="flex w-full" style={{ height: LANE_HEIGHT }}>
                     <div
@@ -889,6 +1260,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
                         onCommit={(v) => setStemVolumeLive(stem, v, true)}
                       />
                     </div>
+
                     <div 
                       className="relative flex-1 cursor-pointer"
                       style={{ backgroundColor: colors.bg }}
@@ -935,7 +1307,33 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
               disabled={!activeStem}
             >
               <Play className="h-4 w-4" />
-              {isPlaying ? (locale === "en" ? "Pause" : locale === "ja" ? "一時停止" : "暂停") : (locale === "en" ? "Play" : locale === "ja" ? "再生" : "播放")}
+              {isPlaying
+                ? pickLocale(locale, {
+                    zh: "暂停",
+                    en: "Pause",
+                    ja: "一時停止",
+                    ko: "일시정지",
+                    ru: "Пауза",
+                    de: "Pause",
+                    pt: "Pausar",
+                    it: "Pausa",
+                    ar: "إيقاف مؤقت",
+                    es: "Pausar",
+                    fr: "Pause",
+                  })
+                : pickLocale(locale, {
+                    zh: "播放",
+                    en: "Play",
+                    ja: "再生",
+                    ko: "재생",
+                    ru: "Воспроизвести",
+                    de: "Abspielen",
+                    pt: "Reproduzir",
+                    it: "Riproduci",
+                    ar: "تشغيل",
+                    es: "Reproducir",
+                    fr: "Lire",
+                  })}
             </button>
             <button
               className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
@@ -968,18 +1366,20 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
                 <button type="button" className={"rounded-full px-3 py-1 transition-colors " + (downloadFormat === "wav" ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5")} onClick={() => setDownloadFormat("wav")}>{dictionary.errors.wav}</button>
               )}
             </div>
+
             <Button className="rounded-full px-3 sm:px-4" variant="secondary" onClick={openDownloadDialog} disabled={!taskId}>{downloadTitle}</Button>
-            <Button variant="outline" className="rounded-full px-4 sm:px-6" onClick={() => { pauseAll(); setIsPlaying(false); setPhase("idle"); setMessage(""); setTaskId(null); setActiveStem(null); setUrls({ vocals: null, drums: null, bass: null, other: null }); }}>{locale === "en" ? "Re-upload" : locale === "ja" ? "再アップロード" : "重新上传"}</Button>
+            <Button variant="outline" className="rounded-full px-4 sm:px-6" onClick={() => { pauseAll(); setIsPlaying(false); setPhase("idle"); setMessage(""); setTaskId(null); setActiveStem(null); setUrls({ vocals: null, drums: null, bass: null, other: null }); }}>{ui.reupload}</Button>
           </div>
         </footer>
 
-        {/* Download Dialog - unchanged */}
+        {/* Download Dialog */}
         <Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{downloadTitle}</DialogTitle>
               <DialogDescription>{downloadHint}</DialogDescription>
             </DialogHeader>
+
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <div className="text-xs text-slate-300">{selectedLabel}</div>
               <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-white">
@@ -987,6 +1387,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
                 {stemLabel(downloadStem)}
               </div>
             </div>
+
             <div role="radiogroup" aria-label="stems" className="mt-3 space-y-1">
               {DISPLAY_STEMS.map((stem) => {
                 const selected = downloadStem === stem;
@@ -1002,9 +1403,28 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
                 );
               })}
             </div>
+            
             <DialogFooter>
                <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <Button className="rounded-full px-10" onClick={() => { setDownloadDialogOpen(false); handleDownload(downloadStem); }}>{saveLabel}</Button>
+                  <Button 
+                    className="rounded-full px-10" 
+                    onClick={() => { 
+                        // 不关闭对话框，等待下载开始 
+                        // 或者点击后关闭，但按钮本身有 loading 态
+                        // 这里逻辑是点击 Save 后开始下载
+                        handleDownload(downloadStem); 
+                    }}
+                    disabled={downloadingItems[downloadStem]}
+                  >
+                    {downloadingItems[downloadStem] ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {saveLabel}
+                        </>
+                    ) : (
+                        saveLabel
+                    )}
+                  </Button>
                </div>
             </DialogFooter>
           </DialogContent>
@@ -1016,12 +1436,13 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
   if (phase === "idle") return renderIdle();
   if (phase === "uploading" || phase === "processing") return renderProcessing();
   if (phase === "done") return renderDone();
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#17171e] px-4 py-16 text-center text-white">
-      <h2 className="text-2xl font-bold">{locale === "en" ? "Upload failed" : locale === "ja" ? "アップロード失敗" : "上传失败"}</h2>
+      <h2 className="text-2xl font-bold">{ui.uploadFailed}</h2>
       <p className="mt-3 max-w-xl text-sm text-slate-300">{message || dictionary.errors.uploadFailed}</p>
       <div className="mt-8 flex items-center gap-3">
-        <Button variant="secondary" className="rounded-full" onClick={() => { setPhase("idle"); setMessage(""); }}>{locale === "en" ? "Try again" : locale === "ja" ? "再試行" : "重试"}</Button>
+        <Button variant="secondary" className="rounded-full" onClick={() => { setPhase("idle"); setMessage(""); }}>{ui.tryAgain}</Button>
         <Button className="rounded-full" onClick={() => fileInputRef.current?.click()}>{dictionary.home.uploadCta}</Button>
       </div>
       <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={onSelectFile} />

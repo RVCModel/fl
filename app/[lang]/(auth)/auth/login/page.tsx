@@ -5,13 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { defaultLocale, Locale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { pickLocale } from "@/i18n/locale-utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,9 +22,7 @@ type PageProps = {
 export default function LoginPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const langParam = resolvedParams?.lang;
-  const locale = locales.includes(langParam as Locale)
-    ? (langParam as Locale)
-    : defaultLocale;
+  const locale = locales.includes(langParam as Locale) ? (langParam as Locale) : defaultLocale;
   const dictionary = getDictionary(locale);
   const router = useRouter();
   const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -40,6 +33,59 @@ export default function LoginPage({ params }: PageProps) {
     const text = String(raw || "");
     return text || dictionary.errors.unknown;
   };
+
+  const loginFailedFallback = pickLocale(locale, {
+    zh: "登录失败",
+    en: "Login failed",
+    ja: "ログインに失敗しました",
+    ko: "로그인에 실패했습니다",
+    ru: "Не удалось войти",
+    de: "Login fehlgeschlagen",
+    pt: "Falha no login",
+    it: "Accesso non riuscito",
+    ar: "فشل تسجيل الدخول",
+    es: "Error al iniciar sesión",
+    fr: "Échec de la connexion",
+  });
+  const loginSuccessText = pickLocale(locale, {
+    zh: "登录成功",
+    en: "Login successful",
+    ja: "ログインしました",
+    ko: "로그인되었습니다",
+    ru: "Вход выполнен",
+    de: "Login erfolgreich",
+    pt: "Login realizado",
+    it: "Accesso effettuato",
+    ar: "تم تسجيل الدخول",
+    es: "Inicio de sesión correcto",
+    fr: "Connexion réussie",
+  });
+  const googleErrorText = pickLocale(locale, {
+    zh: "Google 登录失败",
+    en: "Google sign-in failed",
+    ja: "Google ログインに失敗しました",
+    ko: "Google 로그인에 실패했습니다",
+    ru: "Не удалось войти через Google",
+    de: "Google-Login fehlgeschlagen",
+    pt: "Falha ao entrar com Google",
+    it: "Accesso con Google non riuscito",
+    ar: "فشل تسجيل الدخول عبر Google",
+    es: "Error al iniciar sesión con Google",
+    fr: "Échec de la connexion avec Google",
+  });
+  const continueWithGoogleText = pickLocale(locale, {
+    zh: "使用 Google 登录",
+    en: "Continue with Google",
+    ja: "Google で続行",
+    ko: "Google로 계속하기",
+    ru: "Продолжить с Google",
+    de: "Mit Google fortfahren",
+    pt: "Continuar com Google",
+    it: "Continua con Google",
+    ar: "المتابعة باستخدام Google",
+    es: "Continuar con Google",
+    fr: "Continuer avec Google",
+  });
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,11 +107,11 @@ export default function LoginPage({ params }: PageProps) {
     const data = await res.json();
     if (!res.ok) {
       setState("error");
-      setMessage(mapAuthError(data.error || "Login failed"));
+      setMessage(mapAuthError(data.error || loginFailedFallback));
       return;
     }
     setState("success");
-    setMessage(dictionary.auth.login.action + " success");
+    setMessage(loginSuccessText);
     if (typeof window !== "undefined") {
       localStorage.setItem("vofl:user", email);
       await applySession(data.session);
@@ -74,7 +120,6 @@ export default function LoginPage({ params }: PageProps) {
   };
 
   useEffect(() => {
-    // If the user returns from OAuth, persist session and redirect
     const syncSession = async () => {
       const supabase = getSupabaseBrowserClient();
       const { data } = await supabase.auth.getSession();
@@ -102,12 +147,6 @@ export default function LoginPage({ params }: PageProps) {
     setMessage("");
     const supabase = getSupabaseBrowserClient();
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/${locale}` : undefined;
-    const errorText =
-      locale === "en"
-        ? "Google sign-in failed"
-        : locale === "ja"
-          ? "Google ログインに失敗しました"
-        : "Google 登录失败";
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -117,12 +156,12 @@ export default function LoginPage({ params }: PageProps) {
       });
       if (error) {
         setState("error");
-        setMessage(errorText);
+        setMessage(googleErrorText);
       }
     } catch (err) {
       console.error(err);
       setState("error");
-      setMessage(errorText);
+      setMessage(googleErrorText);
     }
   };
 
@@ -130,9 +169,7 @@ export default function LoginPage({ params }: PageProps) {
     <Card className="border border-border bg-card shadow-2xl shadow-black/30">
       <CardHeader className="flex items-center justify-between">
         <div>
-          <CardTitle className="text-2xl">
-            {dictionary.auth.login.title}
-          </CardTitle>
+          <CardTitle className="text-2xl">{dictionary.auth.login.title}</CardTitle>
           <CardDescription>{dictionary.auth.login.subtitle}</CardDescription>
         </div>
         <Badge>{dictionary.appName}</Badge>
@@ -141,14 +178,7 @@ export default function LoginPage({ params }: PageProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">{dictionary.auth.form.email}</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              autoComplete="email"
-              required
-            />
+            <Input id="email" name="email" type="email" placeholder="you@example.com" autoComplete="email" required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">{dictionary.auth.form.password}</Label>
@@ -163,17 +193,10 @@ export default function LoginPage({ params }: PageProps) {
           </div>
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 text-muted-foreground">
-              <input
-                type="checkbox"
-                name="remember"
-                className="h-4 w-4 rounded border-border bg-muted"
-              />
+              <input type="checkbox" name="remember" className="h-4 w-4 rounded border-border bg-muted" />
               {dictionary.auth.form.remember}
             </label>
-            <Link
-              href={`/${locale}/auth/forgot`}
-              className="text-primary hover:underline"
-            >
+            <Link href={`/${locale}/auth/forgot`} className="text-primary hover:underline">
               {dictionary.auth.login.forgot}
             </Link>
           </div>
@@ -189,29 +212,17 @@ export default function LoginPage({ params }: PageProps) {
             disabled={state === "loading"}
           >
             <GoogleIcon />
-            {locale === "en"
-              ? "Continue with Google"
-              : locale === "ja"
-                ? "Google で続行"
-                : "使用 Google 登录"}
+            {continueWithGoogleText}
           </Button>
         </form>
         {message && (
-          <Alert
-            variant={state === "error" ? "destructive" : "default"}
-            className={state === "error" ? "" : "border-primary/30 bg-primary/10"}
-          >
-            <AlertDescription className={state === "error" ? "text-foreground" : "text-primary"}>
-              {message}
-            </AlertDescription>
+          <Alert variant={state === "error" ? "destructive" : "default"} className={state === "error" ? "" : "border-primary/30 bg-primary/10"}>
+            <AlertDescription className={state === "error" ? "text-foreground" : "text-primary"}>{message}</AlertDescription>
           </Alert>
         )}
         <p className="pt-2 text-center text-sm text-muted-foreground">
           {dictionary.auth.login.alt}{" "}
-          <Link
-            href={`/${locale}/auth/register`}
-            className="text-primary hover:underline"
-          >
+          <Link href={`/${locale}/auth/register`} className="text-primary hover:underline">
             {dictionary.auth.register.action}
           </Link>
         </p>
@@ -242,3 +253,4 @@ function GoogleIcon() {
     </svg>
   );
 }
+

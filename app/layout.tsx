@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { locales } from "@/i18n/config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +17,11 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const languageAlternates = Object.fromEntries(locales.map((locale) => [locale, `/${locale}`])) as Record<
+  string,
+  string
+>;
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://demixr.com"),
   title: {
@@ -26,11 +32,7 @@ export const metadata: Metadata = {
   applicationName: "Demixr.com",
   alternates: {
     canonical: "/",
-    languages: {
-      zh: "/zh",
-      en: "/en",
-      ja: "/ja",
-    },
+    languages: languageAlternates,
   },
   openGraph: {
     type: "website",

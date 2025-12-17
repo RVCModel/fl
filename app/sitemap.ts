@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { locales } from "@/i18n/config";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://demixr.com";
   const now = new Date();
-  const locales = ["zh", "en", "ja"];
+  const supportedLocales = locales;
 
   const paths = [
     "", // demix home
@@ -13,7 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
 
   const entries: MetadataRoute.Sitemap = [];
-  for (const locale of locales) {
+  for (const locale of supportedLocales) {
     for (const path of paths) {
       entries.push({
         url: `${siteUrl}/${locale}${path}`,

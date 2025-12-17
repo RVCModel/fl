@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLocale } from "@/components/locale-provider";
-import { locales } from "@/i18n/config";
+import { locales, type Locale } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -60,9 +60,22 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     { key: "history", href: "/history", icon: <HistoryIcon className="h-5 w-5" /> },
   ];
 
+  const localeLabels: Record<Locale, string> = {
+    zh: "中文",
+    en: "English",
+    ja: "日本語",
+    ko: "한국어",
+    ru: "Русский",
+    de: "Deutsch",
+    pt: "Português",
+    it: "Italiano",
+    ar: "العربية",
+    es: "Español",
+    fr: "Français",
+  };
+
   const activePath = pathname.replace(/^\/[^/]+/, "") || "/";
-  const localeLabel =
-    locale === "zh" ? "中文" : locale === "ja" ? "日本語" : "English";
+  const localeLabel = localeLabels[locale] ?? locale.toUpperCase();
 
   const handleLocaleChange = (target: string) => {
     const segments = pathname.split("/").filter(Boolean);
@@ -298,12 +311,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       "flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition hover:bg-foreground/5",
                       locale === option ? "text-foreground" : "text-muted-foreground",
                     )}
-                    onClick={() => {
+                  onClick={() => {
                       handleLocaleChange(option);
                       setLangOpen(false);
                     }}
                   >
-                    <span>{option.toUpperCase()}</span>
+                    <span>{localeLabels[option]}</span>
                     {locale === option && (
                       <Check className="h-4 w-4 text-primary" />
                     )}
@@ -340,7 +353,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     }}
                   >
                     <HistoryIcon className="h-4 w-4" />
-                    {dictionary.nav.history || "历史记录"}
+                    {dictionary.nav.history || "History"}
                   </button>
                   <button
                     className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition hover:bg-foreground/5"
@@ -350,7 +363,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     }}
                   >
                     <CreditCard className="h-4 w-4" />
-                    {dictionary.nav.billing || (locale === "en" ? "Subscription" : locale === "ja" ? "購読" : "订阅")}
+                    {dictionary.nav.billing || "Subscription"}
                   </button>
                   <button
                     className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition hover:bg-foreground/5"
@@ -360,7 +373,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     }}
                   >
                     <User className="h-4 w-4" />
-                    {dictionary.nav.tickets || (locale === "en" ? "Support Tickets" : locale === "ja" ? "サポート" : "工单反馈")}
+                    {dictionary.nav.tickets || "Support Tickets"}
                   </button>
                   {isAdmin && (
                     <button
@@ -371,8 +384,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       }}
                     >
                       <Settings className="h-4 w-4" />
-                      {dictionary.nav.ticketManage ||
-                        (locale === "en" ? "Ticket Management" : locale === "ja" ? "チケット管理" : "工单管理")}
+                      {dictionary.nav.ticketManage || "Ticket Management"}
                     </button>
                   )}
                   <button
@@ -383,7 +395,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     }}
                   >
                     <Settings className="h-4 w-4" />
-                    {dictionary.nav.settings || (locale === "en" ? "Settings" : locale === "ja" ? "設定" : "设置")}
+                    {dictionary.nav.settings || "Settings"}
                   </button>
                   <div className="my-1 h-px bg-white/10" />
                   <button
