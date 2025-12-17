@@ -150,6 +150,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
   const [position, setPosition] = useState<number>(0);
   const [etaSeconds, setEtaSeconds] = useState<number>(0);
   const [message, setMessage] = useState<string>("");
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
 
   const [subscriptionActive, setSubscriptionActive] = useState<boolean | null>(null);
   const [downloadFormat, setDownloadFormat] = useState<"mp3" | "wav">("mp3");
@@ -746,6 +747,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
   const handleUpload = async (file: File) => {
     setMessage("");
     setPhase("uploading");
+    setUploadPercent(0);
     setUrls({ vocals: null, drums: null, bass: null, other: null });
     setTaskId(null);
     setPosition(0);
@@ -759,19 +761,61 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
         return;
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch(`${apiBase}/demucs/upload`, {
+      const initRes = await fetch(`${apiBase}/demucs/upload/init`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          size_bytes: file.size,
+          chunk_size_bytes: 20 * 1024 * 1024,
+        }),
       });
 
-      const data = await safeJson(res);
-      if (!res.ok) {
-        if (res.status === 401) { router.push(`/${locale}/auth/login`); return; }
-        throw new Error(getApiErrorMessage(res, data));
+      const initData = await safeJson(initRes);
+      if (!initRes.ok) {
+        if (initRes.status === 401) { router.push(`/${locale}/auth/login`); return; }
+        throw new Error(getApiErrorMessage(initRes, initData));
+      }
+
+      const uploadId = String(initData.upload_id || "");
+      const chunkSize = Number(initData.chunk_size_bytes || 20 * 1024 * 1024);
+      if (!uploadId) throw new Error(dictionary.errors.uploadFailed);
+      if (!Number.isFinite(chunkSize) || chunkSize <= 0) throw new Error(dictionary.errors.uploadFailed);
+
+      const totalParts = Math.max(1, Math.ceil(file.size / chunkSize));
+      for (let index = 0; index < totalParts; index++) {
+        const start = index * chunkSize;
+        const end = Math.min(file.size, start + chunkSize);
+        const blob = file.slice(start, end);
+        const fd = new FormData();
+        fd.append("upload_id", uploadId);
+        fd.append("index", String(index));
+        fd.append("total_parts", String(totalParts));
+        fd.append("filename", file.name);
+        fd.append("chunk", blob, file.name);
+
+        const partRes = await fetch(`${apiBase}/demucs/upload/chunk`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+        const partData = await safeJson(partRes);
+        if (!partRes.ok) {
+          if (partRes.status === 401) { router.push(`/${locale}/auth/login`); return; }
+          throw new Error(getApiErrorMessage(partRes, partData));
+        }
+        setUploadPercent(Math.min(100, Math.round((end / file.size) * 100)));
+      }
+
+      const completeRes = await fetch(`${apiBase}/demucs/upload/complete`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ upload_id: uploadId }),
+      });
+      const data = await safeJson(completeRes);
+      if (!completeRes.ok) {
+        if (completeRes.status === 401) { router.push(`/${locale}/auth/login`); return; }
+        throw new Error(getApiErrorMessage(completeRes, data));
       }
 
       setTaskId(data.task_id);
@@ -1099,7 +1143,7 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
         </h2>
         <p className="text-base text-muted-foreground">
           {phase === "uploading" ? (
-            ui.uploadingDesc
+            uploadPercent > 0 ? `${ui.uploadingDesc} (${uploadPercent}%)` : ui.uploadingDesc
           ) : (
             <>
               {ui.processingDesc}

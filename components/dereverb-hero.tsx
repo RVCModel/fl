@@ -383,6 +383,7 @@ export default function DereverbHero({
   const [dryUrl, setDryUrl] = useState<string | null>(null);
   const [residualUrl, setResidualUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [residualVolume, setResidualVolume] = useState(0);
@@ -907,27 +908,74 @@ export default function DereverbHero({
 
     setPhase("uploading");
     setMessage("");
+    setUploadPercent(0);
 
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch(`${apiBase}/dereverb/upload`, {
+      const initRes = await fetch(`${apiBase}/dereverb/upload/init`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          size_bytes: file.size,
+          chunk_size_bytes: 20 * 1024 * 1024,
+        }),
       });
-
-      const data = await safeJson(res);
-
-      if (!res.ok) {
-        if (res.status === 401) {
+      const initData = await safeJson(initRes);
+      if (!initRes.ok) {
+        if (initRes.status === 401) {
           router.push(`/${locale}/auth/login`);
           return;
         }
-        throw new Error(getApiErrorMessage(res, data));
+        throw new Error(getApiErrorMessage(initRes, initData));
+      }
+
+      const uploadId = String(initData.upload_id || "");
+      const chunkSize = Number(initData.chunk_size_bytes || 20 * 1024 * 1024);
+      if (!uploadId) throw new Error(dictionary.errors.uploadFailed);
+      if (!Number.isFinite(chunkSize) || chunkSize <= 0) throw new Error(dictionary.errors.uploadFailed);
+
+      const totalParts = Math.max(1, Math.ceil(file.size / chunkSize));
+      for (let index = 0; index < totalParts; index++) {
+        const start = index * chunkSize;
+        const end = Math.min(file.size, start + chunkSize);
+        const blob = file.slice(start, end);
+        const fd = new FormData();
+        fd.append("upload_id", uploadId);
+        fd.append("index", String(index));
+        fd.append("total_parts", String(totalParts));
+        fd.append("filename", file.name);
+        fd.append("chunk", blob, file.name);
+
+        const partRes = await fetch(`${apiBase}/dereverb/upload/chunk`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+        const partData = await safeJson(partRes);
+        if (!partRes.ok) {
+          if (partRes.status === 401) {
+            router.push(`/${locale}/auth/login`);
+            return;
+          }
+          throw new Error(getApiErrorMessage(partRes, partData));
+        }
+        setUploadPercent(Math.min(100, Math.round((end / file.size) * 100)));
+      }
+
+      const completeRes = await fetch(`${apiBase}/dereverb/upload/complete`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ upload_id: uploadId }),
+      });
+      const data = await safeJson(completeRes);
+      if (!completeRes.ok) {
+        if (completeRes.status === 401) {
+          router.push(`/${locale}/auth/login`);
+          return;
+        }
+        throw new Error(getApiErrorMessage(completeRes, data));
       }
 
       setTaskId(data.task_id);
@@ -1093,7 +1141,7 @@ export default function DereverbHero({
         <h2 className="text-3xl font-bold">{phase === "uploading" ? labels.uploadingTitle : labels.processingTitle}</h2>
         <p className="text-base text-muted-foreground">
           {phase === "uploading" ? (
-            labels.uploadingDesc
+            uploadPercent > 0 ? `${labels.uploadingDesc} (${uploadPercent}%)` : labels.uploadingDesc
           ) : (
             <>
               {labels.processingDesc}
