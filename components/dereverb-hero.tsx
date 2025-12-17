@@ -672,7 +672,7 @@ export default function DereverbHero({
 
   // 1. Dry Track
   useEffect(() => {
-    if (phase !== "done" || !dryWaveContainerRef.current || !dryAudioRef.current || !dryUrl) return;
+    if (phase !== "done" || !dryWaveContainerRef.current || !dryAudioRef.current || !dryUrl || !taskId) return;
 
     if (dryWaveSurferRef.current) {
       dryWaveSurferRef.current.destroy();
@@ -695,16 +695,31 @@ export default function DereverbHero({
       autoScroll: false,
     });
 
-    try {
-      const ret = (ws as any).load(dryUrl);
-      if (ret && typeof ret.then === "function") {
-        ret.catch((err: unknown) => {
-          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-        });
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const token = await getValidAccessToken();
+        if (!token) throw new Error("no_token");
+        const res = await fetch(`${apiBase}/waveform/dereverb/${taskId}/dereverb`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await safeJson(res);
+        if (!cancelled && res.ok && Array.isArray(data?.peaks) && typeof data?.duration === "number") {
+          const ret = (ws as any).load(dryUrl, data.peaks, data.duration);
+          if (ret && typeof ret.then === "function") ret.catch(() => {});
+          return;
+        }
+      } catch (err) {
+        if (!isAbortError(err)) {
+          // fall through
+        }
       }
-    } catch (err) {
-      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-    }
+      try {
+        const ret = (ws as any).load(dryUrl);
+        if (ret && typeof ret.then === "function") ret.catch(() => {});
+      } catch (err) {
+        if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+      }
+    };
+    void load();
 
     ws.setVolume(dryVolume / 100);
     if (dryAudioRef.current) dryAudioRef.current.volume = dryVolume / 100;
@@ -714,15 +729,16 @@ export default function DereverbHero({
 
     dryWaveSurferRef.current = ws;
     return () => {
+      cancelled = true;
       ws.destroy();
       dryWaveSurferRef.current = null;
       setHasDryWave(false);
     };
-  }, [phase, dryUrl]);
+  }, [phase, dryUrl, taskId, apiBase]);
 
   // 2. Residual Track
   useEffect(() => {
-    if (phase !== "done" || !residualWaveContainerRef.current || !residualAudioRef.current || !residualUrl) return;
+    if (phase !== "done" || !residualWaveContainerRef.current || !residualAudioRef.current || !residualUrl || !taskId) return;
 
     if (residualWaveSurferRef.current) {
       residualWaveSurferRef.current.destroy();
@@ -745,16 +761,31 @@ export default function DereverbHero({
       autoScroll: false,
     });
 
-    try {
-      const ret = (ws as any).load(residualUrl);
-      if (ret && typeof ret.then === "function") {
-        ret.catch((err: unknown) => {
-          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-        });
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const token = await getValidAccessToken();
+        if (!token) throw new Error("no_token");
+        const res = await fetch(`${apiBase}/waveform/dereverb/${taskId}/reverb`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await safeJson(res);
+        if (!cancelled && res.ok && Array.isArray(data?.peaks) && typeof data?.duration === "number") {
+          const ret = (ws as any).load(residualUrl, data.peaks, data.duration);
+          if (ret && typeof ret.then === "function") ret.catch(() => {});
+          return;
+        }
+      } catch (err) {
+        if (!isAbortError(err)) {
+          // fall through
+        }
       }
-    } catch (err) {
-      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-    }
+      try {
+        const ret = (ws as any).load(residualUrl);
+        if (ret && typeof ret.then === "function") ret.catch(() => {});
+      } catch (err) {
+        if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+      }
+    };
+    void load();
 
     ws.setVolume(residualVolume / 100);
     if (residualAudioRef.current) residualAudioRef.current.volume = residualVolume / 100;
@@ -764,11 +795,12 @@ export default function DereverbHero({
 
     residualWaveSurferRef.current = ws;
     return () => {
+      cancelled = true;
       ws.destroy();
       residualWaveSurferRef.current = null;
       setHasResidualWave(false);
     };
-  }, [phase, residualUrl]);
+  }, [phase, residualUrl, taskId, apiBase]);
 
   // Sync Volumes
   useEffect(() => {
@@ -1053,25 +1085,24 @@ export default function DereverbHero({
         if (!isSubscribed && fmt === "wav") { setMessage(dictionary.errors.wavDownloadRequiresSubscription); router.push(`/${locale}/billing`); return; }
 
         const stem = name.includes("residual") ? "reverb" : "dereverb";
-        const res = await fetch(`${apiBase}/dereverb/download/${taskId}/${stem}?format=${fmt}`, { headers: { Authorization: `Bearer ${token}` } });
+        const a = document.createElement("a");
+        const baseName = name.replace(/\.(wav|mp3)$/i, "");
+        a.download = `${baseName}.${fmt}`;
 
-        if (!res.ok) {
-           const data = await safeJson(res);
-           const detail = data?.detail ?? data ?? {};
+        const linkRes = await fetch(`${apiBase}/download-link/dereverb/${taskId}/${stem}?format=${fmt}`, { headers: { Authorization: `Bearer ${token}` } });
+        const linkData = await safeJson(linkRes);
+        if (!linkRes.ok) {
+           const detail = linkData?.detail ?? linkData ?? {};
            if (detail?.code === "WAV_REQUIRES_SUBSCRIPTION") { setMessage(dictionary.errors.wavDownloadRequiresSubscription); router.push(`/${locale}/billing`); return; }
            throw new Error(dictionary.errors.uploadFailed);
         }
 
-        const blob = await res.blob();
-        const objectUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = objectUrl;
-        const baseName = name.replace(/\.(wav|mp3)$/i, "");
-        a.download = `${baseName}.${fmt}`;
+        const href = String(linkData?.url || url);
+        a.href = href;
+        a.target = "_blank";
         document.body.appendChild(a);
         a.click();
         a.remove();
-        window.URL.revokeObjectURL(objectUrl);
       } catch (err) { 
         console.error("download failed", err); 
       } finally {

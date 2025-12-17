@@ -889,29 +889,64 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
       autoScroll: false,
     });
 
-    try {
-      const ret = (ws as any).load(url);
-      if (ret && typeof ret.then === "function") {
-        ret.catch((err: unknown) => {
+    wsRefs[stem].current = ws;
+    wsLoadedUrlRef.current[stem] = url;
+
+    const load = async () => {
+      if (wsRefs[stem].current !== ws) return;
+
+      if (!taskId) {
+        try {
+          const ret = (ws as any).load(url);
+          if (ret && typeof ret.then === "function") ret.catch(() => {});
+        } catch (err) {
           if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-        });
+        }
+        return;
       }
-    } catch (err) {
-      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-    }
+
+      try {
+        const token = await getValidAccessToken();
+        if (!token) throw new Error("no_token");
+        const res = await fetch(`${apiBase}/waveform/demucs/${taskId}/${stem}`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await safeJson(res);
+        if (wsRefs[stem].current !== ws) return;
+        if (res.ok && Array.isArray(data?.peaks) && typeof data?.duration === "number") {
+          try {
+            const ret = (ws as any).load(url, data.peaks, data.duration);
+            if (ret && typeof ret.then === "function") ret.catch(() => {});
+            return;
+          } catch (err) {
+            if (!isAbortError(err)) {
+              // fall through
+            }
+          }
+        }
+      } catch (err) {
+        if (!isAbortError(err)) {
+          // fall through
+        }
+      }
+
+      if (wsRefs[stem].current !== ws) return;
+      try {
+        const ret = (ws as any).load(url);
+        if (ret && typeof ret.then === "function") ret.catch(() => {});
+      } catch (err) {
+        if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+      }
+    };
+    void load();
 
     const initialVolume = (volumes[stem] ?? 60) / 100;
     ws.setVolume(initialVolume);
     audio.volume = initialVolume;
-
-    wsRefs[stem].current = ws;
-    wsLoadedUrlRef.current[stem] = url;
   };
 
   useEffect(() => {
     if (phase !== "done") return;
     DISPLAY_STEMS.forEach((stem) => setupWaveSurfer(stem));
-  }, [phase, urls.vocals, urls.drums, urls.bass, urls.other]);
+  }, [phase, urls.vocals, urls.drums, urls.bass, urls.other, taskId, apiBase]);
 
   // === 同步可视化逻辑 ===
   const syncVisuals = () => {
@@ -1058,24 +1093,20 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
 
       if (!isSubscribed && fmt === "wav") { setMessage(dictionary.errors.wavDownloadRequiresSubscription); router.push(`/${locale}/billing`); return; }
 
-      const res = await fetch(`${apiBase}/demucs/download/${taskId}/${stem}?format=${fmt}`, { headers: { Authorization: `Bearer ${token}` }, });
-
-      if (!res.ok) {
-        const data = await safeJson(res);
-        const detail = data?.detail ?? data ?? {};
+      const a = document.createElement("a");
+      a.download = `${stem}.${fmt}`;
+      const linkRes = await fetch(`${apiBase}/download-link/demucs/${taskId}/${stem}?format=${fmt}`, { headers: { Authorization: `Bearer ${token}` } });
+      const linkData = await safeJson(linkRes);
+      if (!linkRes.ok) {
+        const detail = linkData?.detail ?? linkData ?? {};
         if (detail?.code === "WAV_REQUIRES_SUBSCRIPTION") { setMessage(dictionary.errors.wavDownloadRequiresSubscription); router.push(`/${locale}/billing`); return; }
         throw new Error(dictionary.errors.uploadFailed);
       }
-
-      const blob = await res.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objectUrl;
-      a.download = `${stem}.${fmt}`;
+      a.href = String(linkData?.url || "#");
+      a.target = "_blank";
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(objectUrl);
     } catch (err) { 
         console.error("download failed", err); 
     } finally {

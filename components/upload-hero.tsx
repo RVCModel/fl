@@ -717,7 +717,7 @@ export default function UploadHero({
 
   // 1. Vocal Track
   useEffect(() => {
-    if (phase !== "done" || !vocalWaveContainerRef.current || !vocalAudioRef.current || !vocalsUrl) return;
+    if (phase !== "done" || !vocalWaveContainerRef.current || !vocalAudioRef.current || !vocalsUrl || !taskId) return;
 
     if (waveSurferRef.current) {
       waveSurferRef.current.destroy();
@@ -743,16 +743,33 @@ export default function UploadHero({
       autoScroll: false,
     });
 
-    try {
-      const ret = (ws as any).load(vocalsUrl);
-      if (ret && typeof ret.then === "function") {
-        ret.catch((err: unknown) => {
-          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const token = await getValidAccessToken();
+        if (!token) throw new Error("no_token");
+        const res = await fetch(`${apiBase}/waveform/demix/${taskId}/vocals`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        const data = await safeJson(res);
+        if (!cancelled && res.ok && Array.isArray(data?.peaks) && typeof data?.duration === "number") {
+          const ret = (ws as any).load(vocalsUrl, data.peaks, data.duration);
+          if (ret && typeof ret.then === "function") ret.catch(() => {});
+          return;
+        }
+      } catch (err) {
+        if (!isAbortError(err)) {
+          // fall through to url-only load
+        }
       }
-    } catch (err) {
-      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-    }
+      try {
+        const ret = (ws as any).load(vocalsUrl);
+        if (ret && typeof ret.then === "function") ret.catch(() => {});
+      } catch (err) {
+        if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+      }
+    };
+    void load();
 
     ws.setVolume(voiceVolume / 100);
     if (vocalAudioRef.current) vocalAudioRef.current.volume = voiceVolume / 100;
@@ -765,15 +782,16 @@ export default function UploadHero({
 
     waveSurferRef.current = ws;
     return () => {
+      cancelled = true;
       ws.destroy();
       waveSurferRef.current = null;
       setHasWave(false);
     };
-  }, [phase, vocalsUrl]);
+  }, [phase, vocalsUrl, taskId, apiBase]);
 
   // 2. Inst Track
   useEffect(() => {
-    if (phase !== "done" || !instWaveContainerRef.current || !instAudioRef.current || !instUrl) return;
+    if (phase !== "done" || !instWaveContainerRef.current || !instAudioRef.current || !instUrl || !taskId) return;
 
     if (instWaveSurferRef.current) {
       instWaveSurferRef.current.destroy();
@@ -799,16 +817,33 @@ export default function UploadHero({
       autoScroll: false,
     });
 
-    try {
-      const ret = (ws as any).load(instUrl);
-      if (ret && typeof ret.then === "function") {
-        ret.catch((err: unknown) => {
-          if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const token = await getValidAccessToken();
+        if (!token) throw new Error("no_token");
+        const res = await fetch(`${apiBase}/waveform/demix/${taskId}/instrumental`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        const data = await safeJson(res);
+        if (!cancelled && res.ok && Array.isArray(data?.peaks) && typeof data?.duration === "number") {
+          const ret = (ws as any).load(instUrl, data.peaks, data.duration);
+          if (ret && typeof ret.then === "function") ret.catch(() => {});
+          return;
+        }
+      } catch (err) {
+        if (!isAbortError(err)) {
+          // fall through to url-only load
+        }
       }
-    } catch (err) {
-      if (!isAbortError(err)) console.error("wavesurfer load failed", err);
-    }
+      try {
+        const ret = (ws as any).load(instUrl);
+        if (ret && typeof ret.then === "function") ret.catch(() => {});
+      } catch (err) {
+        if (!isAbortError(err)) console.error("wavesurfer load failed", err);
+      }
+    };
+    void load();
 
     ws.setVolume(musicVolume / 100);
     if (instAudioRef.current) instAudioRef.current.volume = musicVolume / 100;
@@ -818,11 +853,12 @@ export default function UploadHero({
 
     instWaveSurferRef.current = ws;
     return () => {
+      cancelled = true;
       ws.destroy();
       instWaveSurferRef.current = null;
       setHasInstWave(false);
     };
-  }, [phase, instUrl]);
+  }, [phase, instUrl, taskId, apiBase]);
 
   // Volume Sync
   useEffect(() => {
@@ -1072,13 +1108,17 @@ export default function UploadHero({
       }
 
       const stem = name.includes("instrumental") ? "instrumental" : "vocals";
-      const res = await fetch(`${apiBase}/download/${taskId}/${stem}?format=${fmt}`, {
+      const a = document.createElement("a");
+      const baseName = name.replace(/\.(wav|mp3)$/i, "");
+      a.download = `${baseName}.${fmt}`;
+
+      // Use short-lived signed URLs to avoid buffering large downloads in JS (better over Cloudflare Tunnel).
+      const linkRes = await fetch(`${apiBase}/download-link/demix/${taskId}/${stem}?format=${fmt}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!res.ok) {
-        const data = await safeJson(res);
-        const detail = data?.detail ?? data ?? {};
+      const linkData = await safeJson(linkRes);
+      if (!linkRes.ok) {
+        const detail = linkData?.detail ?? linkData ?? {};
         if (detail?.code === "WAV_REQUIRES_SUBSCRIPTION") {
           setMessage(dictionary.errors.wavDownloadRequiresSubscription);
           router.push(`/${locale}/billing`);
@@ -1087,16 +1127,12 @@ export default function UploadHero({
         throw new Error(dictionary.errors.uploadFailed);
       }
 
-      const blob = await res.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objectUrl;
-      const baseName = name.replace(/\.(wav|mp3)$/i, "");
-      a.download = `${baseName}.${fmt}`;
+      const href = String(linkData?.url || url);
+      a.href = href;
+      a.target = "_blank";
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(objectUrl);
     } catch (err) {
       console.error("download failed", err);
     } finally {
