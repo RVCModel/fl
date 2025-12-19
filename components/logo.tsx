@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from "react";
+
 interface LogoProps {
   size?: number;
   className?: string;
@@ -5,8 +7,51 @@ interface LogoProps {
 }
 
 export function Logo({ size = 48, className = "", showText = true }: LogoProps) {
+  // 仅在客户端加载后激活随机动画，避免服务端渲染不一致 (Hydration Error)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 定义声波条的数据：[高度比例, x轴偏移]
+  const bars = [
+    { h: 0.3, x: 6 },
+    { h: 0.5, x: 16 },
+    { h: 0.8, x: 26 }, // 主峰
+    { h: 1.0, x: 36 }, // 最高峰
+    { h: 0.7, x: 46 },
+    { h: 0.4, x: 56 },
+  ];
+
   return (
     <div className={`flex items-center gap-3 ${className}`}>
+      {/* 
+         嵌入 CSS 动画定义 
+         1. drop-bounce: 柱子本身的下落回弹入场
+         2. particle-fall: 细小粒子的持续下落循环
+      */}
+      <style jsx>{`
+        @keyframes drop-bounce {
+          0% { transform: translateY(-60px); opacity: 0; }
+          40% { opacity: 1; }
+          60% { transform: translateY(0); }
+          80% { transform: translateY(-4px); }
+          100% { transform: translateY(0); }
+        }
+        @keyframes particle-fall {
+          0% { transform: translateY(-10px); opacity: 0; }
+          20% { opacity: 0.8; }
+          80% { opacity: 0; }
+          100% { transform: translateY(40px); opacity: 0; }
+        }
+        .animate-bar-drop {
+          animation: drop-bounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        .animate-particle {
+          animation: particle-fall 3s infinite linear;
+        }
+      `}</style>
+
       {/* 图标主体 */}
       <svg
         width={size}
@@ -14,57 +59,78 @@ export function Logo({ size = 48, className = "", showText = true }: LogoProps) 
         viewBox="0 0 64 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="flex-shrink-0 shadow-sm" // 添加了轻微阴影增加质感
+        className="flex-shrink-0"
         aria-hidden="true"
       >
-        <defs>
-          {/* 优化后的背景渐变：从靛蓝到紫罗兰，更具科技感 */}
-          <linearGradient id="logoBgGradient" x1="0" y1="0" x2="64" y2="64">
-            <stop offset="0%" stopColor="#4F46E5" /> {/* Indigo-600 */}
-            <stop offset="100%" stopColor="#7C3AED" /> {/* Violet-600 */}
-          </linearGradient>
-          {/* 增加一个内部辉光滤镜 (可选，为了简洁这里未应用，但保留定义) */}
-        </defs>
+        <g transform="translate(0, 4)">
+          {bars.map((bar, index) => {
+            // 生成随机的延迟，让粒子看起来更自然
+            const particleDelay = mounted ? `${Math.random() * 2}s` : "0s";
+            const particleDuration = mounted ? `${2 + Math.random()}s` : "3s";
 
-        {/* 背景容器：圆角矩形 (Squircle)，比圆形更现代 */}
-        <rect width="64" height="64" rx="14" fill="url(#logoBgGradient)" />
+            return (
+              <React.Fragment key={index}>
+                {/* 
+                   GROUP: 包含柱子本体 
+                   style: 动态计算延迟，形成从左到右依次下落的阶梯感 (Staggered Effect)
+                */}
+                <g 
+                  className="animate-bar-drop" 
+                  style={{ animationDelay: `${index * 0.08}s` }}
+                >
+                  {/* 上半部分：人声 (Vocal) */}
+                  <rect
+                    x={bar.x}
+                    y={28 - 24 * bar.h}
+                    width="6"
+                    height={24 * bar.h}
+                    rx="3"
+                    fill="white"
+                  />
+                  
+                  {/* 下半部分：伴奏 (Instrumental) */}
+                  <rect
+                    x={bar.x}
+                    y={32} 
+                    width="6"
+                    height={16 * bar.h}
+                    rx="3"
+                    fill="white"
+                    fillOpacity="0.35" 
+                  />
+                </g>
 
-        {/* 核心图形：分离的声波 */}
-        <g transform="translate(0, 1)"> {/* 微调垂直居中 */}
-          {/* 波纹 1：主声波 (Vocal) - 实心高亮 */}
-          <path
-            d="M12 32C12 32 20 16 32 32C44 48 52 32 52 32"
-            stroke="white"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          
-          {/* 波纹 2：伴奏声波 (Instrumental) - 半透明，与主声波交错 */}
-          <path
-            d="M12 32C12 32 20 48 32 32C44 16 52 32 52 32"
-            stroke="white"
-            strokeWidth="3.5"
-            strokeOpacity="0.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+                {/* 
+                   PARTICLES: 悬浮下落的微粒
+                   位于柱子上方，模拟数据像雨滴一样落下填充柱子
+                */}
+                {mounted && (
+                  <rect
+                    x={bar.x + 2} // 居中于柱子 (柱宽6，粒子宽2，偏移2)
+                    y={10}        // 起始高度
+                    width="2"
+                    height="2"
+                    rx="1"
+                    fill="white"
+                    className="animate-particle"
+                    style={{ 
+                      animationDelay: particleDelay,
+                      animationDuration: particleDuration,
+                      opacity: 0 // 初始隐藏，由动画控制显示
+                    }}
+                  />
+                )}
+              </React.Fragment>
+            );
+          })}
         </g>
-        
-        {/* 装饰点：表示采样点或AI节点 */}
-        <circle cx="32" cy="32" r="2" fill="white" />
       </svg>
 
       {/* 文字部分 */}
       {showText && (
-        <div className="flex flex-col select-none">
-          <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">
-            VocalSplit
-          </span>
-          <span className="-mt-0.5 text-xs font-medium text-gray-500">
-            AI 人声分离
-          </span>
-        </div>
+        <span className="font-sans text-xl font-bold tracking-tight text-white animate-bar-drop" style={{ animationDelay: '0.6s' }}>
+          Demixr
+        </span>
       )}
     </div>
   );

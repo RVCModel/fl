@@ -144,6 +144,8 @@ function MixerSlider({
 export default function DemucsHero({ dictionary, locale }: { dictionary: Dictionary; locale: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const dragDepthRef = useRef(0);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -844,6 +846,56 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
     if (file) handleUpload(file);
   };
 
+  useEffect(() => {
+    const preventDefault = (event: DragEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("dragover", preventDefault, { passive: false });
+    window.addEventListener("drop", preventDefault, { passive: false });
+    return () => {
+      window.removeEventListener("dragover", preventDefault);
+      window.removeEventListener("drop", preventDefault);
+    };
+  }, []);
+
+  const resetDragState = () => {
+    dragDepthRef.current = 0;
+    setIsDragActive(false);
+  };
+
+  const onDragEnter = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepthRef.current += 1;
+    if (event.dataTransfer.items && event.dataTransfer.items.length > 0) {
+      setIsDragActive(true);
+    }
+  };
+
+  const onDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepthRef.current -= 1;
+    if (dragDepthRef.current <= 0) {
+      resetDragState();
+    }
+  };
+
+  const onDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const onDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const file = event.dataTransfer.files?.[0];
+    resetDragState();
+    if (file) handleUpload(file);
+  };
+
   const setStemVolumeLive = (stem: StemKey, v: number, commit: boolean) => {
     const value = clamp(Math.round(v), 0, 100);
     const audio = audioRefs[stem].current;
@@ -1125,7 +1177,49 @@ export default function DemucsHero({ dictionary, locale }: { dictionary: Diction
 
       return (
         <>
-          <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#17171e] px-4 py-20 text-white">
+          <section
+            className={`relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#17171e] px-4 py-20 text-white ${isDragActive ? "ring-2 ring-indigo-500/60" : ""}`}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+          >
+            {isDragActive && (
+              <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-black/40 backdrop-blur-sm">
+                <div className="rounded-2xl border border-white/15 bg-[#17171e]/80 px-6 py-4 text-center shadow-2xl">
+                  <div className="text-base font-semibold text-white">
+                    {pickLocale(locale, {
+                      zh: "松开鼠标上传音频",
+                      en: "Drop to upload audio",
+                      ja: "ドロップしてアップロード",
+                      ko: "놓아서 업로드",
+                      ru: "Отпустите для загрузки",
+                      de: "Zum Hochladen ablegen",
+                      pt: "Solte para enviar",
+                      it: "Rilascia per caricare",
+                      ar: "أفلت للرفع",
+                      es: "Suelta para subir",
+                      fr: "Déposez pour envoyer",
+                    })}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-300">
+                    {pickLocale(locale, {
+                      zh: "支持 mp3 / wav 等常见格式",
+                      en: "Supports mp3 / wav and more",
+                      ja: "mp3 / wav などに対応",
+                      ko: "mp3 / wav 등 지원",
+                      ru: "Поддерживает mp3 / wav и другое",
+                      de: "Unterstützt mp3 / wav und mehr",
+                      pt: "Suporta mp3 / wav e mais",
+                      it: "Supporta mp3 / wav e altro",
+                      ar: "يدعم mp3 / wav والمزيد",
+                      es: "Admite mp3 / wav y más",
+                      fr: "Prend en charge mp3 / wav et plus",
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center text-center">
               <span className="mb-6 text-sm font-medium tracking-wide text-indigo-300">
                 {ui.howItWorksTag}

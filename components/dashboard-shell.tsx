@@ -23,18 +23,19 @@ import {
   Droplets,
   Globe2,
   LogIn,
+  Menu,
   Settings,
   UserRoundPlus,
   LogOut,
-  History as HistoryIcon,
   CreditCard,
   Waves,
   Layers,
   User,
+  History as HistoryIcon, // 确保引入 HistoryIcon
 } from "lucide-react";
 
 type NavItem = {
-  key: "demix" | "dereverb" | "bpm" | "stems" | "history";
+  key: "demix" | "dereverb" | "bpm" | "stems";
   href: string;
   icon: ReactElement;
 };
@@ -43,21 +44,22 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { locale, dictionary } = useLocale();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [userLabel, setUserLabel] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const navRef = useRef<HTMLDivElement | null>(null);
   const langRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
+  // 1. 中间导航条 (仍然保持不显示 History，保持界面简洁)
   const navItems: NavItem[] = [
-    { key: "demix", href: "", icon: <Waves className="h-5 w-5" /> },
-    { key: "dereverb", href: "/dereverb", icon: <Droplets className="h-5 w-5" /> },
-    { key: "stems", href: "/stems", icon: <Layers className="h-5 w-5" /> },
-    { key: "bpm", href: "/bpm", icon: <Activity className="h-5 w-5" /> },
-    { key: "history", href: "/history", icon: <HistoryIcon className="h-5 w-5" /> },
+    { key: "demix", href: "", icon: <Waves className="h-4 w-4" /> },
+    { key: "dereverb", href: "/dereverb", icon: <Droplets className="h-4 w-4" /> },
+    { key: "stems", href: "/stems", icon: <Layers className="h-4 w-4" /> },
+    { key: "bpm", href: "/bpm", icon: <Activity className="h-4 w-4" /> },
   ];
 
   const localeLabels: Record<Locale, string> = {
@@ -88,6 +90,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
     const stored = localStorage.getItem("vofl:user");
     setUserLabel(stored);
+
     const onStorage = () => {
       setUserLabel(localStorage.getItem("vofl:user"));
     };
@@ -96,7 +99,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Sync Supabase session (incl. social login) into header state/localStorage
     const supabase = getSupabaseBrowserClient();
     supabase.auth.getSession().then(({ data }) => {
       const email = data.session?.user?.email || null;
@@ -108,6 +110,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       }
       setUserLabel(email);
     });
+
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       const email = session?.user?.email || null;
       if (typeof window !== "undefined") {
@@ -124,6 +127,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       }
       setUserLabel(email);
     });
+
     return () => {
       authListener.subscription.unsubscribe();
     };
@@ -152,10 +156,24 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, [userLabel]);
 
   useEffect(() => {
+    const onScroll = () => {
+      setIsScrolled((window.scrollY || 0) > 8);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname, locale]);
+
+  useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (menuOpen && menuRef.current && !menuRef.current.contains(target)) {
-        setMenuOpen(false);
+      if (navOpen && navRef.current && !navRef.current.contains(target)) {
+        setNavOpen(false);
       }
       if (langOpen && langRef.current && !langRef.current.contains(target)) {
         setLangOpen(false);
@@ -166,7 +184,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     };
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [langOpen, menuOpen, profileOpen]);
+  }, [langOpen, navOpen, profileOpen]);
 
   const handleLogout = async () => {
     try {
@@ -184,169 +202,179 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#17171e] text-foreground">
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-foreground/5 bg-[#17171e] px-3 text-foreground sm:px-8">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Link href={`/${locale}`} className="flex min-w-0 items-center gap-3" aria-label="demixr">
-            <LogoIcon size={40} className="drop-shadow-sm" />
-            <div className="flex min-w-0 flex-col">
-              <span className="max-w-[140px] truncate bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 bg-clip-text text-xl font-bold tracking-tight text-transparent sm:max-w-none">
-                Demixr
-              </span>
-              <span className="-mt-0.5 hidden max-w-[180px] truncate text-xs text-muted-foreground sm:block sm:max-w-none">
-                {dictionary.brandSubtitle}
-              </span>
-            </div>
+    <div className="flex min-h-screen flex-col bg-[#17171e] pt-16 text-foreground">
+      {/* 
+        Header:
+        - 无边框 (无 border-b)
+        - 吸顶跟随 (fixed top-0 z-50)
+        - 毛玻璃背景 (bg-[#17171e]/90 backdrop-blur-md)
+      */}
+      <header
+        className={cn(
+          "fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b px-4 transition-colors duration-200 sm:px-8",
+          isScrolled
+            ? "border-white/10 bg-[#17171e]/70 backdrop-blur-xl backdrop-saturate-150"
+            : "border-transparent bg-[#17171e] backdrop-blur-none",
+        )}
+      >
+        
+        {/* Left: Logo */}
+        <div className="flex items-center gap-4">
+          <Link href={`/${locale}`} className="flex items-center gap-3" aria-label="demixr">
+            <LogoIcon size={36} className="text-white" />
+            <span className="text-lg font-bold tracking-tight text-white">
+              Demixr
+            </span>
           </Link>
-          <div className="relative" ref={menuRef}>
+
+          {/* Mobile Navigation */}
+          <div className="relative md:hidden" ref={navRef}>
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-lg bg-white/20 text-foreground shadow-sm backdrop-blur-sm hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20"
+              className="h-9 w-9 rounded-full text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
               aria-haspopup="true"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((v) => !v)}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5 text-foreground/80"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-              >
-                <rect x="4.5" y="4.5" width="6" height="6" rx="1.6" />
-                <rect x="4.5" y="13.5" width="6" height="6" rx="1.6" />
-                <rect x="13.5" y="13.5" width="6" height="6" rx="1.6" />
-                <path d="M15.5 5.5 17 4l1.5 1.5L17 7z" />
-              </svg>
+              <Menu className="h-5 w-5" />
             </Button>
-            <span className="pointer-events-none absolute right-0 top-0 z-10 inline-flex h-2.5 w-2.5 translate-x-1/2 -translate-y-1/2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#17171e]" />
-            </span>
-            {menuOpen && (
-              <div className="absolute left-0 top-12 w-[calc(100vw-1.5rem)] max-w-[320px] rounded-2xl border border-white/10 bg-[#17171e] p-3 shadow-2xl sm:min-w-[240px]">
-                <div className="space-y-1">
-                  {navItems.map((item) => {
-                    const itemPath = item.href || "/";
-                    const isActive =
-                      activePath === itemPath ||
-                      activePath.startsWith(itemPath + "/") ||
-                      (itemPath === "/" && activePath === "/");
-                                        const subtitles: Record<NavItem["key"], string> = {
-                      demix: "Vocals ? Music",
-                      dereverb: "Dry/Wet ? Echo",
-                      bpm: "Tempo ? Grid",
-                      stems: "4 stems ? Demucs",
-                      history: "Recent jobs",
-                    };
-                    const labels: Record<NavItem["key"], string> = {
-                      demix: dictionary.nav.demix,
-                      dereverb: dictionary.nav.dereverb,
-                      bpm: dictionary.nav.bpm,
-                      stems: dictionary.nav.stems,
-                      history: dictionary.nav.history || "History",
-                    };
-                    return (
-                      <Link
-                        key={item.key}
-                        href={`/${locale}${item.href}`}
-                        className={cn(
-                          "flex items-center justify-between gap-3 rounded-xl px-3 py-2 transition",
-                          isActive
-                            ? "bg-primary/20 text-foreground"
-                            : "hover:bg-white/5 text-muted-foreground hover:text-foreground",
-                        )}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-primary">
-                            {item.icon}
-                          </div>
-                          <div className="text-left">
-                            <div className="flex items-center gap-2">
-                              <div className="text-sm font-semibold">{dictionary.nav[item.key]}</div>
-                              {item.key === "stems" && (
-                                <Badge className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-black">
-                                  NEW
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {subtitles[item.key]}
-                            </div>
-                          </div>
-                        </div>
-                        {isActive && (
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-4 w-4" />
-                          </div>
-                        )}
-                      </Link>
-                    );
-                  })}
+
+            {navOpen && (
+              <>
+                <button
+                  type="button"
+                  className="fixed inset-0 top-16 z-40 bg-black/40"
+                  aria-label="Close navigation menu"
+                  onClick={() => setNavOpen(false)}
+                />
+                <div className="fixed inset-x-0 top-16 z-40 border-b border-white/10 bg-[#17171e]/80 p-3 shadow-2xl backdrop-blur-xl backdrop-saturate-150">
+                  <div className="grid gap-1">
+                    {navItems.map((item) => {
+                      const itemPath = item.href || "/";
+                      const isActive =
+                        activePath === itemPath ||
+                        activePath.startsWith(itemPath + "/") ||
+                        (itemPath === "/" && activePath === "/");
+
+                      return (
+                        <Link
+                          key={item.key}
+                          href={`/${locale}${item.href}`}
+                          aria-current={isActive ? "page" : undefined}
+                          className={cn(
+                            "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                            isActive ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5 hover:text-white",
+                          )}
+                          onClick={() => setNavOpen(false)}
+                        >
+                          <span className="opacity-80">{item.icon}</span>
+                          <span className="flex-1">{dictionary.nav[item.key]}</span>
+                          {item.key === "stems" && (
+                            <Badge className="h-4 rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-black">
+                              NEW
+                            </Badge>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-1 sm:gap-4">
+
+        {/* Center: Desktop Navigation */}
+        <nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-8 md:flex">
+          {navItems.map((item) => {
+            const itemPath = item.href || "/";
+            const isActive =
+              activePath === itemPath ||
+              activePath.startsWith(itemPath + "/") ||
+              (itemPath === "/" && activePath === "/");
+
+            return (
+              <Link
+                key={item.key}
+                href={`/${locale}${item.href}`}
+                className={cn(
+                  "group flex items-center gap-2 text-sm font-medium transition-colors",
+                  isActive ? "text-white" : "text-gray-400 hover:text-white"
+                )}
+              >
+                <span className={cn("opacity-70 group-hover:opacity-100 transition-opacity", isActive ? "opacity-100" : "")}>
+                   {item.icon} 
+                </span>
+                <span>{dictionary.nav[item.key]}</span>
+                {item.key === "stems" && (
+                  <Badge className="ml-1 h-4 rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-black hover:bg-emerald-400">
+                    NEW
+                  </Badge>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-3 sm:gap-5">
+          {/* Language Switcher */}
           <div className="relative" ref={langRef}>
             <Button
-              variant="outline"
-              size="sm"
-              className="flex min-w-0 items-center gap-2 rounded-full border border-transparent bg-transparent px-2 py-2 text-sm text-slate-200 shadow-none transition hover:bg-white/5 sm:px-3"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-gray-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
               onClick={() => setLangOpen((v) => !v)}
             >
-              <Globe2 className="h-4 w-4 text-slate-300" />
-              <span className="hidden tracking-tight sm:inline">{localeLabel}</span>
-              <ChevronDown className="h-4 w-4 text-slate-400" />
+              <Globe2 className="h-5 w-5" />
             </Button>
             {langOpen && (
-              <div className="absolute right-0 top-12 min-w-[140px] rounded-2xl border border-white/10 bg-[#17171e] p-2 shadow-xl">
+              <div className="absolute right-0 top-12 min-w-[140px] rounded-xl border border-white/10 bg-[#17171e] p-2 shadow-xl ring-1 ring-black/5 z-50">
                 {locales.map((option) => (
                   <button
                     key={option}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition hover:bg-foreground/5",
-                      locale === option ? "text-foreground" : "text-muted-foreground",
+                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition hover:bg-white/5",
+                      locale === option ? "text-white" : "text-gray-400"
                     )}
-                  onClick={() => {
+                    onClick={() => {
                       handleLocaleChange(option);
                       setLangOpen(false);
                     }}
                   >
                     <span>{localeLabels[option]}</span>
-                    {locale === option && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
+                    {locale === option && <Check className="h-3.5 w-3.5" />}
                   </button>
                 ))}
               </div>
             )}
           </div>
+
           {userLabel ? (
+            // Logged In: Simplified Profile Trigger
             <div className="relative" ref={profileRef}>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex min-w-0 items-center gap-2 rounded-full border border-transparent bg-transparent px-2 py-2 text-slate-200 shadow-none transition hover:bg-white/5 sm:gap-3 sm:px-3"
+              <button
+                type="button"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors focus:outline-none"
                 onClick={() => setProfileOpen((v) => !v)}
                 aria-haspopup="true"
                 aria-expanded={profileOpen}
+                title={userLabel}
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-semibold text-white">
-                  <User className="h-4 w-4" />
-                </span>
-                <span className="hidden max-w-[120px] truncate text-sm sm:inline sm:max-w-[220px]">
-                  {userLabel || "用户名"}
-                </span>
-                <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
-              </Button>
+                <User className="h-5 w-5" />
+              </button>
+
+              {/* Dropdown Menu */}
               {profileOpen && (
-                <div className="absolute right-0 top-12 w-52 rounded-2xl border border-white/10 bg-[#17171e] p-2 shadow-2xl">
-                  <button
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition hover:bg-foreground/5"
+                <div className="absolute right-0 top-12 w-64 rounded-xl border border-white/10 bg-[#17171e] p-2 shadow-2xl z-50">
+                   <div className="mb-2 px-3 py-2 text-xs font-medium text-gray-500 border-b border-white/5 truncate">
+                      {userLabel}
+                   </div>
+                   
+                   {/* 2. 在下拉菜单中加回 History */}
+                   <button
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
                     onClick={() => {
                       setProfileOpen(false);
                       router.push(`/${locale}/history`);
@@ -355,8 +383,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     <HistoryIcon className="h-4 w-4" />
                     {dictionary.nav.history || "History"}
                   </button>
+
                   <button
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition hover:bg-foreground/5"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
                     onClick={() => {
                       setProfileOpen(false);
                       router.push(`/${locale}/billing`);
@@ -365,8 +394,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     <CreditCard className="h-4 w-4" />
                     {dictionary.nav.billing || "Subscription"}
                   </button>
+
                   <button
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition hover:bg-foreground/5"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
                     onClick={() => {
                       setProfileOpen(false);
                       router.push(`/${locale}/tickets`);
@@ -375,9 +405,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     <User className="h-4 w-4" />
                     {dictionary.nav.tickets || "Support Tickets"}
                   </button>
+
                   {isAdmin && (
                     <button
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition hover:bg-foreground/5"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
                       onClick={() => {
                         setProfileOpen(false);
                         router.push(`/${locale}/tickets/manage`);
@@ -387,8 +418,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       {dictionary.nav.ticketManage || "Ticket Management"}
                     </button>
                   )}
+
                   <button
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition hover:bg-foreground/5"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
                     onClick={() => {
                       setProfileOpen(false);
                       router.push(`/${locale}/settings`);
@@ -397,9 +429,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     <Settings className="h-4 w-4" />
                     {dictionary.nav.settings || "Settings"}
                   </button>
+
                   <div className="my-1 h-px bg-white/10" />
+
                   <button
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-500 transition hover:bg-red-500/10"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
                     onClick={() => {
                       setProfileOpen(false);
                       handleLogout();
@@ -412,24 +446,27 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               )}
             </div>
           ) : (
-            <>
+            // Logged Out Actions
+            <div className="flex items-center gap-3">
               <Link href={`/${locale}/auth/login`}>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="rounded-full border border-white/10 bg-white/5 px-4 text-white shadow-sm transition hover:bg-white/10"
+                  className="text-gray-300 hover:text-white hover:bg-transparent px-2"
                 >
-                  <LogIn className="mr-1 h-4 w-4" />
                   {dictionary.header.login}
                 </Button>
               </Link>
+              
               <Link href={`/${locale}/auth/register`}>
-                <Button size="sm" className="rounded-full">
-                  <UserRoundPlus className="mr-1 h-4 w-4" />
+                <Button 
+                  size="sm" 
+                  className="rounded-full bg-white px-5 text-black hover:bg-gray-200 font-bold"
+                >
                   {dictionary.auth.register.action}
                 </Button>
               </Link>
-            </>
+            </div>
           )}
         </div>
       </header>
