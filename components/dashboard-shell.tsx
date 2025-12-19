@@ -22,16 +22,14 @@ import {
   ChevronDown,
   Droplets,
   Globe2,
-  LogIn,
   Menu,
   Settings,
-  UserRoundPlus,
   LogOut,
   CreditCard,
   Waves,
   Layers,
   User,
-  History as HistoryIcon, // 确保引入 HistoryIcon
+  History as HistoryIcon,
 } from "lucide-react";
 
 type NavItem = {
@@ -54,7 +52,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const langRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. 中间导航条 (仍然保持不显示 History，保持界面简洁)
   const navItems: NavItem[] = [
     { key: "demix", href: "", icon: <Waves className="h-4 w-4" /> },
     { key: "dereverb", href: "/dereverb", icon: <Droplets className="h-4 w-4" /> },
@@ -159,7 +156,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     const onScroll = () => {
       setIsScrolled((window.scrollY || 0) > 8);
     };
-
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -203,12 +199,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#17171e] pt-16 text-foreground">
-      {/* 
-        Header:
-        - 无边框 (无 border-b)
-        - 吸顶跟随 (fixed top-0 z-50)
-        - 毛玻璃背景 (bg-[#17171e]/90 backdrop-blur-md)
-      */}
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b px-4 transition-colors duration-200 sm:px-8",
@@ -227,19 +217,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             </span>
           </Link>
 
-          {/* Mobile Navigation */}
+          {/* Mobile Navigation Button */}
           <div className="relative md:hidden" ref={navRef}>
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+              // 提亮了移动端菜单按钮颜色: text-gray-200
+              className="h-9 w-9 rounded-full text-gray-200 transition-colors hover:bg-white/10 hover:text-white"
               aria-haspopup="true"
               aria-expanded={navOpen}
               onClick={() => setNavOpen((v) => !v)}
             >
               <Menu className="h-5 w-5" />
             </Button>
-
             {navOpen && (
               <>
                 <button
@@ -264,11 +254,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                           aria-current={isActive ? "page" : undefined}
                           className={cn(
                             "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                            isActive ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5 hover:text-white",
+                            // 提亮了移动端菜单颜色
+                            isActive ? "bg-white/10 text-white" : "text-gray-200 hover:bg-white/5 hover:text-white",
                           )}
                           onClick={() => setNavOpen(false)}
                         >
-                          <span className="opacity-80">{item.icon}</span>
+                          <span className="opacity-90">{item.icon}</span>
                           <span className="flex-1">{dictionary.nav[item.key]}</span>
                           {item.key === "stems" && (
                             <Badge className="h-4 rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-black">
@@ -300,10 +291,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 href={`/${locale}${item.href}`}
                 className={cn(
                   "group flex items-center gap-2 text-sm font-medium transition-colors",
-                  isActive ? "text-white" : "text-gray-400 hover:text-white"
+                  // 提亮了未选中颜色: text-gray-200 (接近白色)，选中为纯白 text-white
+                  isActive ? "text-white font-semibold" : "text-gray-200 hover:text-white"
                 )}
               >
-                <span className={cn("opacity-70 group-hover:opacity-100 transition-opacity", isActive ? "opacity-100" : "")}>
+                {/* 提亮了图标不透明度: opacity-90 */}
+                <span className={cn("opacity-90 group-hover:opacity-100 transition-opacity", isActive ? "opacity-100" : "")}>
                    {item.icon} 
                 </span>
                 <span>{dictionary.nav[item.key]}</span>
@@ -324,7 +317,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-gray-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+              // 提亮了地球图标颜色
+              className="h-9 w-9 text-gray-200 hover:bg-white/10 hover:text-white rounded-full transition-colors"
               onClick={() => setLangOpen((v) => !v)}
             >
               <Globe2 className="h-5 w-5" />
@@ -336,7 +330,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     key={option}
                     className={cn(
                       "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition hover:bg-white/5",
-                      locale === option ? "text-white" : "text-gray-400"
+                      locale === option ? "text-white" : "text-gray-300"
                     )}
                     onClick={() => {
                       handleLocaleChange(option);
@@ -356,7 +350,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <div className="relative" ref={profileRef}>
               <button
                 type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors focus:outline-none"
+                // 提亮了用户图标颜色
+                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-200 hover:bg-white/10 hover:text-white transition-colors focus:outline-none"
                 onClick={() => setProfileOpen((v) => !v)}
                 aria-haspopup="true"
                 aria-expanded={profileOpen}
@@ -368,11 +363,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               {/* Dropdown Menu */}
               {profileOpen && (
                 <div className="absolute right-0 top-12 w-64 rounded-xl border border-white/10 bg-[#17171e] p-2 shadow-2xl z-50">
-                   <div className="mb-2 px-3 py-2 text-xs font-medium text-gray-500 border-b border-white/5 truncate">
+                   <div className="mb-2 px-3 py-2 text-xs font-medium text-gray-400 border-b border-white/5 truncate">
                       {userLabel}
                    </div>
                    
-                   {/* 2. 在下拉菜单中加回 History */}
                    <button
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
                     onClick={() => {
@@ -449,21 +443,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             // Logged Out Actions
             <div className="flex items-center gap-3">
               <Link href={`/${locale}/auth/login`}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-300 hover:text-white hover:bg-transparent px-2"
-                >
-                  {dictionary.header.login}
-                </Button>
-              </Link>
-              
-              <Link href={`/${locale}/auth/register`}>
                 <Button 
                   size="sm" 
                   className="rounded-full bg-white px-5 text-black hover:bg-gray-200 font-bold"
                 >
-                  {dictionary.auth.register.action}
+                  {dictionary.header.login}
                 </Button>
               </Link>
             </div>
