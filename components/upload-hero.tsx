@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Dictionary } from "@/i18n/dictionaries";
 import { Faq } from "@/components/faq";
-import { Play, SkipBack, Loader2 } from "lucide-react"; // 新增 Loader2
+import { Pause, Play, SkipBack, Loader2 } from "lucide-react"; // 新增 Loader2
 import { getValidAccessToken } from "@/lib/auth-client";
 import { pickLocale } from "@/i18n/locale-utils";
 
@@ -1294,7 +1294,7 @@ export default function UploadHero({
               className="flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary/90"
               onClick={togglePlay}
             >
-              <Play className="h-4 w-4" />
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               {isPlaying ? labels.pause : labels.play}
             </button>
             <button
