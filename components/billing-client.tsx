@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CreemCheckout, CreemPortal } from "@creem_io/nextjs";
 import { Dictionary } from "@/i18n/dictionaries";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getSupabaseBrowserClient, getValidAccessToken } from "@/lib/auth-client";
@@ -16,18 +17,6 @@ type BillingStatus = {
   source?: string | null;
   expiresAt?: string | null;
 };
-
-function AlipayIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="#1677ff" />
-      <path
-        d="M8 17 12 7l4 10h-2l-.8-2h-2.4L9.9 17H8zm3.3-3.5h1.9L12.2 9.9l-.9 3.6z"
-        fill="white"
-      />
-    </svg>
-  );
-}
 
 export default function BillingClient({
   dictionary,
@@ -305,10 +294,15 @@ export default function BillingClient({
               ) : isActive && customerId && !isAlipayActive ? (
                 <CreemPortal customerId={customerId}>
                   <Button
-                    className="rounded-full bg-white/10 px-6 text-white hover:bg-white/15"
+                    className="flex h-24 w-28 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
                     disabled={loading}
+                    title={locale === "zh" ? "Creem续费" : "Creem manage"}
+                    aria-label={locale === "zh" ? "Creem续费" : "Creem manage"}
                   >
-                    {dictionary.billing.manage}
+                    <Image src="/creem-icon.svg" alt="Creem" width={28} height={28} />
+                    <span className="text-xs font-semibold uppercase tracking-wide">
+                      {locale === "zh" ? "Creem续费" : "Creem"}
+                    </span>
                   </Button>
                 </CreemPortal>
               ) : !isActive ? (
@@ -320,36 +314,32 @@ export default function BillingClient({
                   metadata={{ referenceId: userId ?? undefined, source: "web", locale }}
                 >
                   <Button
-                    className="rounded-full bg-indigo-600 px-6 hover:bg-indigo-700"
+                    className="flex h-24 w-28 flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
                     disabled={!canCheckout || loading}
-                    title={!productId ? dictionary.billing.missingProduct : undefined}
+                    title={!productId ? dictionary.billing.missingProduct : dictionary.billing.subscribe}
+                    aria-label={dictionary.billing.subscribe}
                   >
-                    {dictionary.billing.subscribe}
+                    <Image src="/creem-icon.svg" alt="Creem" width={28} height={28} />
+                    <span className="text-xs font-semibold uppercase tracking-wide">Creem</span>
                   </Button>
                 </CreemCheckout>
               ) : null}
 
               <Button
-                className="rounded-full bg-emerald-500/15 px-6 text-emerald-100 hover:bg-emerald-500/25"
+                className="flex h-24 w-28 flex-col items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20"
                 onClick={startAlipayCheckout}
                 disabled={!userId || alipayLoading}
+                title={locale === "zh" ? (isActive ? "支付宝续费" : "支付宝") : "Alipay"}
+                aria-label={locale === "zh" ? (isActive ? "支付宝续费" : "支付宝") : "Alipay"}
               >
                 {alipayLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {locale === "zh" ? "生成中…" : "Preparing..."}
-                  </>
-                ) : isAlipayActive ? (
-                  <>
-                    <AlipayIcon className="mr-2 h-4 w-4" />
-                    {locale === "zh" ? "支付宝续费" : "Renew via Alipay"}
-                  </>
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <>
-                    <AlipayIcon className="mr-2 h-4 w-4" />
-                    {alipayLabel}
-                  </>
+                  <Image src="/z.png" alt="Alipay" width={28} height={28} />
                 )}
+                <span className="text-xs font-semibold">
+                  {locale === "zh" ? (isActive ? "支付宝续费" : "支付宝") : "Alipay"}
+                </span>
               </Button>
 
               <div className="w-full text-xs text-slate-400">{alipayPrice}</div>
