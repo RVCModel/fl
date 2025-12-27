@@ -141,7 +141,6 @@ All plans include access to our platform, lead generation tools, and dedicated s
                       minimumFractionDigits: 0,
                       maximumFractionDigits: 0,
                     }}
-                    formatter={(value) => `$${value}`}
                     transformTiming={{
                       duration: 500,
                       easing: "ease-out",
