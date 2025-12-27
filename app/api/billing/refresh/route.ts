@@ -36,23 +36,43 @@ export async function POST(req: Request) {
     return NextResponse.json({ active: false, reason: "missing_product" }, { status: 200 });
   }
 
+  const supabase = getSupabaseServerClient();
+  const { data: existing } = await supabase
+    .from("billing_customers")
+    .select("subscription_source,subscription_expires_at,subscription_active")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existing?.subscription_source === "alipay") {
+    const expiresAt = existing.subscription_expires_at ? new Date(existing.subscription_expires_at) : null;
+    const stillActive = !!existing.subscription_active && (!expiresAt || expiresAt.getTime() > Date.now());
+    if (!stillActive && existing.subscription_active) {
+      await supabase
+        .from("billing_customers")
+        .update({ subscription_active: false })
+        .eq("user_id", user.id);
+    }
+    return NextResponse.json({ active: stillActive, reason: "alipay" }, { status: 200 });
+  }
+
   try {
     const customer = await getCustomerByEmail(email);
-  if (!customer) {
-    const supabase = getSupabaseServerClient();
-    await supabase
-      .from("billing_customers")
-      .upsert(
-        {
-          user_id: user.id,
-          customer_email: email,
-          subscription_active: false,
-          product_id: productId,
-        },
-        { onConflict: "user_id" },
-      );
-    return NextResponse.json({ active: false, reason: "no_customer" }, { status: 200 });
-  }
+    if (!customer) {
+      await supabase
+        .from("billing_customers")
+        .upsert(
+          {
+            user_id: user.id,
+            customer_email: email,
+            subscription_active: false,
+            product_id: productId,
+            subscription_source: "creem",
+            subscription_expires_at: null,
+          },
+          { onConflict: "user_id" },
+        );
+      return NextResponse.json({ active: false, reason: "no_customer" }, { status: 200 });
+    }
 
     const txs = await searchTransactions({ customerId: customer.id, productId, pageSize: 30, pageNumber: 1 });
     const subscriptionId = txs.find((t) => t.subscription)?.subscription ?? null;
@@ -66,7 +86,6 @@ export async function POST(req: Request) {
       active = isSubscriptionActive(String((sub as any)?.status ?? ""));
     }
 
-    const supabase = getSupabaseServerClient();
     await supabase
       .from("billing_customers")
       .upsert(
@@ -76,6 +95,8 @@ export async function POST(req: Request) {
           customer_email: email,
           subscription_active: active,
           product_id: productId,
+          subscription_source: "creem",
+          subscription_expires_at: null,
         },
         { onConflict: "user_id" },
       );
@@ -90,7 +111,6 @@ export async function POST(req: Request) {
       { status: 200 },
     );
   } catch (err) {
-    const supabase = getSupabaseServerClient();
     const { data } = await supabase
       .from("billing_customers")
       .select("customer_id,subscription_active,product_id")

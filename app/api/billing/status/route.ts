@@ -24,21 +24,33 @@ export async function GET(req: Request) {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("billing_customers")
-    .select("customer_id,subscription_active,product_id")
+    .select("customer_id,subscription_active,product_id,subscription_expires_at,subscription_source")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (error) {
     return NextResponse.json(
-      { active: false, customerId: null, productId: null },
+      { active: false, customerId: null, productId: null, source: null, expiresAt: null },
       { status: 200 },
     );
   }
 
+  const expiresAtRaw = data?.subscription_expires_at ?? null;
+  const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
+  let active = !!data?.subscription_active;
+  if (active && expiresAt && expiresAt.getTime() <= Date.now()) {
+    active = false;
+    await supabase
+      .from("billing_customers")
+      .update({ subscription_active: false })
+      .eq("user_id", user.id);
+  }
+
   return NextResponse.json({
-    active: !!data?.subscription_active,
+    active,
     customerId: data?.customer_id ?? null,
     productId: data?.product_id ?? null,
+    source: data?.subscription_source ?? null,
+    expiresAt: expiresAtRaw,
   });
 }
-

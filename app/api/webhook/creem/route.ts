@@ -26,6 +26,8 @@ export const POST = Webhook({
           customer_email: customer.email,
           subscription_active: true,
           product_id: product?.id ?? null,
+          subscription_source: "creem",
+          subscription_expires_at: null,
         },
         { onConflict: "user_id" },
       );
@@ -46,6 +48,8 @@ export const POST = Webhook({
           customer_email: customer.email,
           subscription_active: true,
           product_id: product?.id ?? null,
+          subscription_source: "creem",
+          subscription_expires_at: null,
         },
         { onConflict: "user_id" },
       );
@@ -66,6 +70,8 @@ export const POST = Webhook({
           customer_email: customer.email,
           subscription_active: false,
           product_id: product?.id ?? null,
+          subscription_source: "creem",
+          subscription_expires_at: null,
         },
         { onConflict: "user_id" },
       );

@@ -75,6 +75,8 @@ export async function POST(req: Request) {
         customer_email: user.email ?? null,
         subscription_active: active,
         product_id: productId,
+        subscription_source: "creem",
+        subscription_expires_at: null,
       },
       { onConflict: "user_id" },
     );
@@ -91,4 +93,3 @@ export async function POST(req: Request) {
     { status: 200 },
   );
 }
-

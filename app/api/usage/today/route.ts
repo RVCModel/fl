@@ -24,11 +24,19 @@ export async function GET(req: Request) {
   const supabase = getSupabaseServerClient();
   const { data: billing } = await supabase
     .from("billing_customers")
-    .select("subscription_active")
+    .select("subscription_active,subscription_expires_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const subscribed = !!billing?.subscription_active;
+  const expiresAt = billing?.subscription_expires_at ? new Date(billing.subscription_expires_at) : null;
+  let subscribed = !!billing?.subscription_active;
+  if (subscribed && expiresAt && expiresAt.getTime() <= Date.now()) {
+    subscribed = false;
+    await supabase
+      .from("billing_customers")
+      .update({ subscription_active: false })
+      .eq("user_id", user.id);
+  }
   const limit = null;
 
   const start = new Date();
