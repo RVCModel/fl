@@ -14,6 +14,7 @@ export type Dictionary = {
     dailyLimitReached: string;
     unsupportedFileType: string;
     wavDownloadRequiresSubscription: string;
+    exportLimitReached: string;
     mp3: string;
     wav: string;
     taskNotFoundOrExpired: string;
@@ -25,6 +26,7 @@ export type Dictionary = {
     dereverb: { q: string; a: string }[];
     bpm: { q: string; a: string }[];
     demucs?: { q: string; a: string }[];
+    vad?: { q: string; a: string }[];
   };
   billing: {
     title: string;
@@ -174,6 +176,7 @@ const dictionaryZh: Dictionary = {
       dailyLimitReached: "今日使用次数已达上限（{limit} 次），请订阅后继续使用",
       unsupportedFileType: "不支持的文件格式",
       wavDownloadRequiresSubscription: "未订阅用户暂不支持下载 WAV，请订阅后下载",
+      exportLimitReached: "普通用户仅可免费导出 2 次，请订阅后继续导出",
       mp3: "MP3",
       wav: "WAV",
       taskNotFoundOrExpired: "任务不存在或已过期，请重新上传",
@@ -239,6 +242,20 @@ const dictionaryZh: Dictionary = {
         {
           q: "订阅用户与非订阅用户的区别",
           a: "鉴于音频处理（去人声 / 去混响）在计算资源与后端成本上的高消耗，我们对不同用户类型设置了如下策略：\n\n非订阅用户\n- 每日不限次数\n- 处理任务需进入队列等待\n- 不支持下载原始 WAV 格式文件\n\n订阅会员用户\n- 每日不限次数\n- 享有优先处理权限，无需排队\n- 支持下载处理后的原始 WAV 音频文件\n\n如需免排队处理或下载 WAV，建议升级为订阅会员。",
+        },
+      ],
+      vad: [
+        {
+          q: "VAD 识别不了",
+          a: "在特殊情况下，如人声部分音量较小或者嘈杂则可能出现识别不准确的情况，可以先去伴奏或者去混响操作后，再进行 VAD 识别。",
+        },
+        {
+          q: "如何编辑",
+          a: "点击列表，双击开始时间或者结束时间能进行对区域的编辑。",
+        },
+        {
+          q: "我的音频安全",
+          a: "上传的音频不会用于训练以及分析，除用户授权情况下除外，后端将会在 24 小时后删除本次上传的音频。",
         },
       ],
     },
@@ -407,6 +424,7 @@ const dictionaryEn: Dictionary = {
       dailyLimitReached: "Daily limit reached ({limit} per day). Please subscribe to continue.",
       unsupportedFileType: "Unsupported file type",
       wavDownloadRequiresSubscription: "WAV download is available for subscribers only",
+      exportLimitReached: "Free users can export only 2 times. Please subscribe to export more.",
       mp3: "MP3",
       wav: "WAV",
       taskNotFoundOrExpired: "Task not found or expired. Please re-upload.",
@@ -472,6 +490,20 @@ const dictionaryEn: Dictionary = {
         {
           q: "Subscriber vs non-subscriber",
           a: "Audio processing (vocal removal / dereverb) is resource-intensive, so we apply different policies:\n\nNon-subscribers\n- Unlimited jobs per day\n- Jobs are queued\n- Original WAV downloads are not available\n\nSubscribers\n- Unlimited jobs per day\n- Priority processing (no queue)\n- Original WAV downloads are available\n\nIf you want priority processing and WAV downloads, consider upgrading to a subscription.",
+        },
+      ],
+      vad: [
+        {
+          q: "VAD fails to detect speech",
+          a: "In some cases (low vocal volume or noisy recordings), detection may be inaccurate. Try running accompaniment removal or dereverb first, then run VAD again.",
+        },
+        {
+          q: "How do I edit markers?",
+          a: "Click a row in the list, then double-click the start or end time to edit the segment.",
+        },
+        {
+          q: "Is my audio safe?",
+          a: "Uploaded audio is not used for training or analysis unless you explicitly authorize it. The backend deletes the uploaded audio after 24 hours.",
         },
       ],
     },
@@ -640,6 +672,7 @@ const dictionaryJa: Dictionary = {
       dailyLimitReached: "本日の上限に達しました（{limit} 回/日）。購読して続行してください。",
       unsupportedFileType: "未対応のファイル形式です",
       wavDownloadRequiresSubscription: "WAV のダウンロードは購読ユーザーのみ利用できます",
+      exportLimitReached: "無料ユーザーは 2 回までエクスポートできます。続けるにはサブスクしてください。",
       mp3: "MP3",
       wav: "WAV",
       taskNotFoundOrExpired: "タスクが見つからないか期限切れです。再アップロードしてください。",
@@ -859,6 +892,7 @@ const dictionaryKo: Dictionary = {
     dailyLimitReached: "오늘 사용 한도에 도달했습니다({limit}회). 계속하려면 구독하세요.",
     unsupportedFileType: "지원하지 않는 파일 형식",
     wavDownloadRequiresSubscription: "WAV 다운로드는 구독자만 가능합니다",
+    exportLimitReached: "무료 사용자는 2회까지만 내보낼 수 있습니다. 더 내보내려면 구독하세요.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "작업을 찾을 수 없거나 만료되었습니다. 다시 업로드하세요.",
@@ -1092,6 +1126,7 @@ const dictionaryRu: Dictionary = {
     dailyLimitReached: "Достигнут дневной лимит ({limit} в день). Оформите подписку, чтобы продолжить.",
     unsupportedFileType: "Неподдерживаемый тип файла",
     wavDownloadRequiresSubscription: "Скачивание WAV доступно только подписчикам",
+    exportLimitReached: "Бесплатные пользователи могут экспортировать только 2 раза. Подпишитесь для продолжения.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "Задача не найдена или истекла. Загрузите заново.",
@@ -1325,6 +1360,7 @@ const dictionaryDe: Dictionary = {
     dailyLimitReached: "Tageslimit erreicht ({limit} pro Tag). Bitte abonnieren, um fortzufahren.",
     unsupportedFileType: "Nicht unterstützter Dateityp",
     wavDownloadRequiresSubscription: "WAV-Download ist nur für Abonnenten verfügbar",
+    exportLimitReached: "Kostenlose Nutzer können nur 2 Mal exportieren. Bitte abonnieren.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "Auftrag nicht gefunden oder abgelaufen. Bitte erneut hochladen.",
@@ -1558,6 +1594,7 @@ const dictionaryPt: Dictionary = {
     dailyLimitReached: "Limite diário atingido ({limit} por dia). Assine para continuar.",
     unsupportedFileType: "Tipo de ficheiro não suportado",
     wavDownloadRequiresSubscription: "O download WAV está disponível apenas para assinantes",
+    exportLimitReached: "Usuários gratuitos podem exportar apenas 2 vezes. Assine para exportar mais.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "Tarefa não encontrada ou expirada. Envie novamente.",
@@ -1791,6 +1828,7 @@ const dictionaryIt: Dictionary = {
     dailyLimitReached: "Raggiunto il limite giornaliero ({limit} al giorno). Abbonati per continuare.",
     unsupportedFileType: "Tipo di file non supportato",
     wavDownloadRequiresSubscription: "Il download WAV è disponibile solo per gli abbonati",
+    exportLimitReached: "Gli utenti gratuiti possono esportare solo 2 volte. Abbonati per esportare di più.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "Attività non trovata o scaduta. Ricarica il file.",
@@ -2024,6 +2062,7 @@ const dictionaryAr: Dictionary = {
     dailyLimitReached: "تم الوصول إلى الحد اليومي ({limit} في اليوم). اشترك للمتابعة.",
     unsupportedFileType: "نوع ملف غير مدعوم",
     wavDownloadRequiresSubscription: "تنزيل WAV متاح للمشتركين فقط",
+    exportLimitReached: "يمكن للمستخدمين المجانيين التصدير مرتين فقط. يرجى الاشتراك للمزيد.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "المهمة غير موجودة أو انتهت صلاحيتها. يرجى إعادة الرفع.",
@@ -2257,6 +2296,7 @@ const dictionaryEs: Dictionary = {
     dailyLimitReached: "Límite diario alcanzado ({limit} al día). Suscríbete para continuar.",
     unsupportedFileType: "Tipo de archivo no compatible",
     wavDownloadRequiresSubscription: "La descarga WAV está disponible solo para suscriptores",
+    exportLimitReached: "Los usuarios gratuitos solo pueden exportar 2 veces. Suscríbete para exportar más.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "Tarea no encontrada o caducada. Vuelve a subir el archivo.",
@@ -2490,6 +2530,7 @@ const dictionaryFr: Dictionary = {
     dailyLimitReached: "Limite journalière atteinte ({limit} par jour). Abonnez-vous pour continuer.",
     unsupportedFileType: "Type de fichier non pris en charge",
     wavDownloadRequiresSubscription: "Le téléchargement WAV est réservé aux abonnés",
+    exportLimitReached: "Les utilisateurs gratuits ne peuvent exporter que 2 fois. Abonnez-vous pour continuer.",
     mp3: "MP3",
     wav: "WAV",
     taskNotFoundOrExpired: "Tâche introuvable ou expirée. Veuillez réimporter.",

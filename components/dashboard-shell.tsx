@@ -30,12 +30,14 @@ import {
   Layers,
   User,
   History as HistoryIcon,
+  AudioWaveform,
 } from "lucide-react";
 
 type NavItem = {
-  key: "demix" | "dereverb" | "bpm" | "stems";
+  key: "demix" | "dereverb" | "bpm" | "stems" | "vad";
   href: string;
   icon: ReactElement;
+  label: string;
 };
 
 export function DashboardShell({ children }: { children: ReactNode }) {
@@ -53,10 +55,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const profileRef = useRef<HTMLDivElement | null>(null);
 
   const navItems: NavItem[] = [
-    { key: "demix", href: "", icon: <Waves className="h-4 w-4" /> },
-    { key: "dereverb", href: "/dereverb", icon: <Droplets className="h-4 w-4" /> },
-    { key: "stems", href: "/stems", icon: <Layers className="h-4 w-4" /> },
-    { key: "bpm", href: "/bpm", icon: <Activity className="h-4 w-4" /> },
+    { key: "demix", href: "", icon: <Waves className="h-4 w-4" />, label: "Demix" },
+    { key: "dereverb", href: "/dereverb", icon: <Droplets className="h-4 w-4" />, label: "Dereverb" },
+    { key: "vad", href: "/vad", icon: <AudioWaveform className="h-4 w-4" />, label: "VAD" },
+    { key: "stems", href: "/stems", icon: <Layers className="h-4 w-4" />, label: "Stems" },
+    { key: "bpm", href: "/bpm", icon: <Activity className="h-4 w-4" />, label: "BPM" },
   ];
 
   const localeLabels: Record<Locale, string> = {
@@ -75,6 +78,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const activePath = pathname.replace(/^\/[^/]+/, "") || "/";
   const localeLabel = localeLabels[locale] ?? locale.toUpperCase();
+  const navLabel = (key: NavItem["key"], fallback: string) => {
+    return (dictionary.nav as Record<string, string | undefined>)[key] || fallback;
+  };
 
   const handleLocaleChange = (target: string) => {
     const segments = pathname.split("/").filter(Boolean);
@@ -260,8 +266,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                           onClick={() => setNavOpen(false)}
                         >
                           <span className="opacity-90">{item.icon}</span>
-                          <span className="flex-1">{dictionary.nav[item.key]}</span>
-                          {item.key === "stems" && (
+                          <span className="flex-1">{navLabel(item.key, item.label)}</span>
+                          {item.key === "vad" && (
                             <Badge className="h-4 rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-black">
                               NEW
                             </Badge>
@@ -299,8 +305,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <span className={cn("opacity-90 group-hover:opacity-100 transition-opacity", isActive ? "opacity-100" : "")}>
                    {item.icon} 
                 </span>
-                <span>{dictionary.nav[item.key]}</span>
-                {item.key === "stems" && (
+                <span>{navLabel(item.key, item.label)}</span>
+                {item.key === "vad" && (
                   <Badge className="ml-1 h-4 rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-black hover:bg-emerald-400">
                     NEW
                   </Badge>
